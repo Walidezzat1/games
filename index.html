@@ -354,9 +354,9 @@
                 if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                     config = JSON.parse(__firebase_config);
                 } else {
-                    // يمكنك وضع إعداداتك هنا كاحتياط
+                    // إعدادات Firebase اليدوية الخاصة بك
                     config = {
-                        apiKey: "", // فارغة للبيئة التلقائية
+                        apiKey: "AIzaSyD5vPVQnEEnmx1yv6BGrtDVzmEjQ3PcP1Q",
                         authDomain: "smartgame-dbb51.firebaseapp.com",
                         projectId: "smartgame-dbb51",
                         storageBucket: "smartgame-dbb51.firebasestorage.app",
@@ -470,7 +470,7 @@
 
         window.createRoom = async () => {
             const name = document.getElementById('input-nickname').value.trim();
-            if (!name) return showToast("يرجى إدخال اسمك أولاً", "error");
+            if (!name) return showToast("يرجى إدخل اسمك أولاً", "error");
             
             document.getElementById('loading-overlay').classList.remove('hidden');
             const code = Array.from({length: 5}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*31)]).join('');
