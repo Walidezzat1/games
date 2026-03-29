@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لعبة الخداع الذكي | Multiplayer Quiz</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="questions.js"></script>
 
     <script>
         tailwind.config = {
@@ -19,8 +20,7 @@
                             dark: '#1e1b4b', primary: '#4f46e5', secondary: '#ec4899',
                             accent: '#f59e0b', success: '#10b981'
                         }
-                    },
-                    animation: { 'bounce-slow': 'bounce 3s infinite' }
+                    }
                 }
             }
         }
@@ -29,150 +29,85 @@
         body { font-family: 'Cairo', sans-serif; background-color: #0f172a; color: white; overflow-x: hidden; }
         .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .btn-primary { background: linear-gradient(135deg, #4f46e5, #ec4899); transition: transform 0.2s; }
-        .btn-primary:hover { transform: scale(1.05); }
-        .btn-primary:active { transform: scale(0.95); }
-        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
-        @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+        .btn-primary:hover { transform: scale(1.02); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-brand-primary rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-pulse"></div>
-        <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-brand-secondary rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+    <div id="app-container" class="w-full max-w-2xl mx-auto hidden">
+        <div id="screen-login" class="glass-panel rounded-2xl p-8 flex flex-col items-center space-y-6 text-center">
+            <i data-lucide="brain-circuit" class="w-16 h-16 text-brand-primary"></i>
+            <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-secondary">الخداع الذكي</h1>
+            <input type="text" id="input-nickname" placeholder="اسمك المستعار..." class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-center text-lg">
+            <button onclick="createRoom()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg">إنشاء غرفة</button>
+            <div class="flex gap-2 w-full">
+                <input type="text" id="input-room-code" placeholder="كود الغرفة" class="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-center uppercase">
+                <button onclick="joinRoom()" class="bg-slate-700 px-6 rounded-xl font-bold">انضمام</button>
+            </div>
+        </div>
+
+        <div id="screen-lobby" class="glass-panel rounded-2xl p-6 hidden flex-col items-center">
+            <h2 class="text-xl mb-4">كود الغرفة: <span id="display-room-code" class="text-brand-accent font-mono text-3xl">----</span></h2>
+            <div id="players-list" class="flex flex-wrap gap-2 mb-6 justify-center"></div>
+            <div id="host-controls" class="hidden">
+                <button onclick="startGame()" class="btn-primary px-10 py-3 rounded-xl font-bold">ابدأ اللعبة</button>
+            </div>
+        </div>
+
+        <div id="screen-write" class="hidden flex flex-col space-y-4">
+            <div class="flex justify-between bg-slate-800 p-3 rounded-xl">
+                <span id="round-info-write">السؤال 1 من 25</span>
+                <span id="timer-write" class="font-mono text-brand-accent">30</span>
+            </div>
+            <div class="glass-panel rounded-2xl p-6 text-center">
+                <p id="question-text" class="text-2xl font-bold mb-6">...</p>
+                <div id="write-form">
+                    <input type="text" id="input-fake-answer" placeholder="اكتب إجابة تخدع بها أصدقائك..." class="w-full p-4 rounded-xl bg-slate-800 border-2 border-slate-600 text-center text-lg mb-4">
+                    <button onclick="submitFakeAnswer()" class="btn-primary w-full py-3 rounded-xl font-bold">إرسال الخدعة</button>
+                </div>
+                <div id="write-waiting" class="hidden text-slate-400 animate-pulse">تم الاستلام.. بانتظار البقية...</div>
+            </div>
+        </div>
+
+        <div id="screen-choose" class="hidden flex flex-col space-y-4">
+            <div class="flex justify-between bg-slate-800 p-3 rounded-xl text-brand-secondary font-bold">
+                <span id="round-info-choose">اختر الإجابة الصحيحة!</span>
+                <span id="timer-choose" class="font-mono">20</span>
+            </div>
+            <div id="choices-area" class="grid grid-cols-1 gap-3"></div>
+        </div>
+
+        <div id="screen-results" class="hidden glass-panel rounded-2xl p-6 text-center">
+            <h2 class="text-2xl mb-4">الإجابة الصحيحة هي:</h2>
+            <p id="correct-answer-display" class="text-3xl font-bold text-brand-success mb-6 bg-green-500/10 p-4 rounded-xl">...</p>
+            <div id="results-details" class="text-right space-y-2 mb-6"></div>
+            <div id="host-next-round" class="hidden">
+                <button onclick="nextRound()" class="btn-primary w-full py-3 rounded-xl font-bold">السؤال التالي</button>
+            </div>
+        </div>
+
+        <div id="screen-leaderboard" class="hidden glass-panel rounded-2xl p-6 text-center">
+            <h2 class="text-3xl font-bold mb-6">الترتيب النهائي 🏆</h2>
+            <div id="leaderboard-list" class="space-y-2 mb-6"></div>
+            <button onclick="location.reload()" class="bg-slate-700 w-full py-3 rounded-xl">العودة للرئيسية</button>
+        </div>
+        
+        <footer class="text-center text-slate-600 text-xs mt-8">إعداد موجّه الفيزياء أ/وليد عزت</footer>
     </div>
 
-    <div id="app-container" class="w-full max-w-2xl mx-auto flex flex-col items-center space-y-6 hidden">
-        <div id="screen-login" class="w-full glass-panel rounded-2xl p-8 flex flex-col items-center space-y-6 text-center">
-            <div class="w-24 h-24 bg-brand-primary rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/50 mb-2">
-                <i data-lucide="brain-circuit" class="w-12 h-12 text-white"></i>
-            </div>
-            <div>
-                <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-secondary">الخداع الذكي</h1>
-                <p class="text-brand-accent font-bold mt-2 text-lg">من تصميم الموجه الفني للفيزياء أ/ وليد عزت</p>
-            </div>
-            <p class="text-gray-300">أدخل اسماً مستعاراً للبدء في اللعب</p>
-            <input type="text" id="input-nickname" placeholder="اسمك المستعار..." class="w-full max-w-xs px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-lg" maxlength="15">
-            <div class="flex flex-col w-full max-w-xs space-y-3 pt-4">
-                <button onclick="createRoom()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2"><i data-lucide="plus-circle" class="w-5 h-5"></i> إنشاء غرفة جديدة</button>
-                <div class="relative flex py-2 items-center">
-                    <div class="flex-grow border-t border-slate-700"></div>
-                    <span class="flex-shrink-0 mx-4 text-slate-500 text-sm">أو</span>
-                    <div class="flex-grow border-t border-slate-700"></div>
-                </div>
-                <div class="flex gap-2">
-                    <input type="text" id="input-room-code" placeholder="كود الغرفة" class="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-brand-secondary text-center uppercase font-mono tracking-widest" maxlength="5">
-                    <button onclick="joinRoom()" class="bg-slate-700 hover:bg-slate-600 text-white px-6 rounded-xl font-bold transition-colors">انضمام</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-lobby" class="w-full glass-panel rounded-2xl p-6 hidden flex-col items-center">
-            <h2 class="text-2xl font-bold mb-2">غرفة الانتظار</h2>
-            <div class="bg-slate-800 px-6 py-3 rounded-xl border border-slate-700 flex items-center gap-4 mb-6">
-                <span class="text-gray-400">كود الغرفة:</span>
-                <span id="display-room-code" class="text-3xl font-mono font-bold text-brand-accent tracking-widest">----</span>
-                <button onclick="copyRoomCode()" class="text-slate-400 hover:text-white transition-colors" title="نسخ الكود"><i data-lucide="copy" class="w-5 h-5"></i></button>
-            </div>
-            <div class="w-full bg-slate-800/50 rounded-xl p-4 mb-6 min-h-[150px]">
-                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2"><i data-lucide="users" class="w-5 h-5 text-brand-primary"></i> اللاعبون المتصلون (<span id="player-count">0</span>)</h3>
-                <div id="players-list" class="flex flex-wrap gap-3 max-h-48 overflow-y-auto p-2"></div>
-            </div>
-            <div id="host-controls" class="w-full hidden flex-col items-center">
-                <button onclick="startGame()" class="btn-primary w-full max-w-xs py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2"><i data-lucide="play" class="w-5 h-5"></i> ابدأ اللعبة الآن</button>
-            </div>
-            <div id="guest-waiting" class="w-full flex flex-col items-center">
-                <div class="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                <p class="text-slate-400">في انتظار مدير الغرفة لبدء اللعبة...</p>
-            </div>
-        </div>
-
-        <div id="screen-write" class="w-full hidden flex-col items-center space-y-6">
-            <div class="w-full flex justify-between items-center bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
-                <span class="font-bold text-brand-secondary">السؤال <span id="round-number-write">1</span> من 25</span>
-                <div class="flex items-center gap-2 font-mono text-xl text-brand-accent font-bold"><i data-lucide="timer" class="w-5 h-5"></i><span id="timer-write">30</span></div>
-            </div>
-            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
-                <span class="text-sm text-brand-primary font-bold mb-2 block" id="question-category">...</span>
-                <h2 id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed mb-6">...</h2>
-                <div id="write-area" class="space-y-4">
-                    <input type="text" id="input-fake-answer" placeholder="إجابتك المضللة هنا..." class="w-full px-4 py-4 rounded-xl bg-slate-800 border-2 border-slate-600 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-lg">
-                    <button onclick="submitFakeAnswer()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg">تأكيد الإجابة</button>
-                </div>
-                <div id="write-waiting" class="hidden flex-col items-center py-6">
-                    <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-3"></i>
-                    <p class="text-slate-400">في انتظار باقي اللاعبين...</p>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-choose" class="w-full hidden flex-col items-center space-y-6">
-            <div class="w-full flex justify-between items-center bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
-                <span class="font-bold text-brand-secondary">السؤال <span id="round-number-choose">1</span> من 25</span>
-                <div class="flex items-center gap-2 font-mono text-xl text-brand-accent font-bold"><i data-lucide="timer" class="w-5 h-5"></i><span id="timer-choose">20</span></div>
-            </div>
-            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
-                <h2 id="question-text-choose" class="text-xl md:text-2xl font-bold leading-relaxed mb-6">...</h2>
-                <div id="choices-area" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto p-2"></div>
-                <div id="choose-waiting" class="hidden flex-col items-center py-6 mt-4">
-                    <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-3"></i>
-                    <p class="text-slate-400">تم اختيار إجابتك!</p>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-results" class="w-full hidden flex-col items-center space-y-6">
-            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
-                <h2 class="text-3xl font-bold text-white mb-2">نتيجة السؤال</h2>
-                <div class="bg-brand-success/20 border border-brand-success/50 rounded-xl p-4 mb-8">
-                    <p class="text-sm text-brand-success mb-1">الإجابة الصحيحة هي:</p>
-                    <h3 id="correct-answer-display" class="text-2xl font-bold text-white">...</h3>
-                </div>
-                <div id="results-details" class="space-y-4 text-right max-h-[40vh] overflow-y-auto p-4 bg-slate-800/50 rounded-xl"></div>
-                <div id="host-next-round" class="hidden mt-8">
-                    <button onclick="nextRound()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">التالي <i data-lucide="arrow-left" class="w-5 h-5"></i></button>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-leaderboard" class="w-full hidden flex-col items-center space-y-6">
-            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand-accent to-brand-secondary"></div>
-                <i data-lucide="trophy" class="w-16 h-16 text-brand-accent mx-auto mb-4 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]"></i>
-                <h2 class="text-3xl font-bold text-white mb-6">الترتيب النهائي</h2>
-                <div id="leaderboard-list" class="space-y-3 mb-8 max-h-[50vh] overflow-y-auto p-2"></div>
-                <div class="flex justify-center gap-4">
-                    <button onclick="leaveRoom()" class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-colors">الخروج</button>
-                    <div id="host-play-again" class="hidden"><button onclick="playAgain()" class="btn-primary px-6 py-3 rounded-xl font-bold shadow-lg">لعب 25 سؤالاً جديداً</button></div>
-                </div>
-            </div>
-        </div>
-
-        <footer class="w-full text-center text-slate-500 text-xs py-4">إعداد موجّه الفيزياء أ/وليد عزت</footer>
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
+        <div class="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+        <p class="mt-4 text-slate-400">جاري الاتصال بقاعدة البيانات...</p>
     </div>
-
-    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-6">
-        <div id="loader-content" class="flex flex-col items-center transition-all">
-            <div class="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-6"></div>
-            <p class="text-xl font-bold text-white text-center">جاري الاتصال بالخادم...</p>
-            <p class="text-slate-400 text-sm mt-2 text-center max-w-xs">يرجى وضع إعدادات Firebase الخاصة بك لتعمل اللعبة.</p>
-        </div>
-    </div>
-
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // =========================================================================
-        // 🔴 ضع مفاتيح Firebase الخاصة بك هنا لتعمل اللعبة على GitHub 🔴
-        // =========================================================================
-        const myFirebaseConfig = {
+        // --- مفاتيحك الخاصة ---
+        const firebaseConfig = {
             apiKey: "AIzaSyD5vPVQnEEnmx1yv6BGrtDVzmEjQ3PcP1Q",
             authDomain: "smartgame-dbb51.firebaseapp.com",
             projectId: "smartgame-dbb51",
@@ -180,511 +115,219 @@
             messagingSenderId: "943840300648",
             appId: "1:943840300648:web:31f18ee9ea6d92ba96b5dd"
         };
-        // =========================================================================
 
-        // موسوعة الأسئلة المدمجة (أكثر من 200 سؤال منوع ومصمم بعناية)
-        const questionDatabase = [
-            // --- جغرافيا ---
-            { q: "ما هو أطول نهر في العالم؟", a: "نهر النيل", c: "جغرافيا" },
-            { q: "ما هي عاصمة أستراليا؟", a: "كانبرا", c: "جغرافيا" },
-            { q: "في أي قارة تقع دولة البرازيل؟", a: "أمريكا الجنوبية", c: "جغرافيا" },
-            { q: "ما هي عاصمة اليابان؟", a: "طوكيو", c: "جغرافيا" },
-            { q: "كم عدد قارات العالم؟", a: "سبع قارات", c: "جغرافيا" },
-            { q: "أين يقع تمثال الحرية؟", a: "نيويورك", c: "جغرافيا" },
-            { q: "ما هي أكبر دولة في العالم من حيث المساحة؟", a: "روسيا", c: "جغرافيا" },
-            { q: "ما هي عاصمة إيطاليا؟", a: "روما", c: "جغرافيا" },
-            { q: "أين يقع برج إيفل؟", a: "باريس", c: "جغرافيا" },
-            { q: "ما هي أكبر محيطات العالم؟", a: "المحيط الهادئ", c: "جغرافيا" },
-            { q: "ما هي عاصمة إسبانيا؟", a: "مدريد", c: "جغرافيا" },
-            { q: "ما هو أعلى جبل في العالم؟", a: "إيفرست", c: "جغرافيا" },
-            { q: "ما هي القارة الملقبة بالقارة السمراء؟", a: "أفريقيا", c: "جغرافيا" },
-            { q: "أين تقع الكعبة المشرفة؟", a: "مكة المكرمة", c: "جغرافيا" },
-            { q: "ما هي عاصمة كندا؟", a: "أوتاوا", c: "جغرافيا" },
-            { q: "أصغر دولة في العالم من حيث المساحة؟", a: "الفاتيكان", c: "جغرافيا" },
-            { q: "أين يقع جبل كيليمانجارو؟", a: "تنزانيا", c: "جغرافيا" },
-            { q: "ما هي الدولة التي تتكون من أكثر من 17 ألف جزيرة؟", a: "إندونيسيا", c: "جغرافيا" },
-            { q: "ما هي عاصمة الأرجنتين؟", a: "بوينس آيرس", c: "جغرافيا" },
-            { q: "بحر يفصل بين قارتي أوروبا وأفريقيا؟", a: "البحر الأبيض المتوسط", c: "جغرافيا" },
-            { q: "دولة عربية يمر بها خط الاستواء؟", a: "الصومال", c: "جغرافيا" },
-            { q: "عاصمة المملكة العربية السعودية؟", a: "الرياض", c: "جغرافيا" },
-            { q: "ما هو أطول نهر في قارة آسيا؟", a: "اليانغتسي", c: "جغرافيا" },
-            { q: "ما هي المدينة الملقبة بمدينة الضباب؟", a: "لندن", c: "جغرافيا" },
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        let currentUser = null;
+        let roomId = null;
+        let localState = {};
 
-            // --- علوم وفيزياء وكيمياء ---
-            { q: "ما هو المعدن السائل في درجة حرارة الغرفة؟", a: "الزئبق", c: "علوم" },
-            { q: "ما هو الكوكب الملقب بالكوكب الأحمر؟", a: "المريخ", c: "علوم" },
-            { q: "ما هو العنصر الكيميائي الذي رمزه O؟", a: "الأكسجين", c: "علوم" },
-            { q: "ما هو الحيوان البري الأسرع في العالم؟", a: "الفهد", c: "علوم" },
-            { q: "ما هو أقرب كوكب للشمس؟", a: "عطارد", c: "علوم" },
-            { q: "ما هو الغاز الذي تمتصه النباتات؟", a: "ثاني أكسيد الكربون", c: "علوم" },
-            { q: "كم عدد أسنان الإنسان البالغ الطبيعي؟", a: "32", c: "علوم" },
-            { q: "ما هو الحيوان الملقب بسفينة الصحراء؟", a: "الجمل", c: "علوم" },
-            { q: "ما هو أصغر كوكب في المجموعة الشمسية؟", a: "عطارد", c: "علوم" },
-            { q: "ما هي المادة التي تشكل 70% من جسم الإنسان؟", a: "الماء", c: "علوم" },
-            { q: "ما هو الطائر الذي لا يطير ويعيش في القارة القطبية؟", a: "البطريق", c: "علوم" },
-            { q: "ما هو الجهاز الذي يقيس الزلازل؟", a: "السيسموغراف", c: "علوم" },
-            { q: "كم عدد حواس الإنسان الأساسية؟", a: "خمس", c: "علوم" },
-            { q: "ما هو الكوكب الذي يمتلك حلقات واضحة حوله؟", a: "زحل", c: "علوم" },
-            { q: "ما هو أسرع طائر في العالم؟", a: "الشاهين", c: "علوم" },
-            { q: "كم عدد الألوان في قوس قزح؟", a: "سبعة", c: "علوم" },
-            { q: "ما هو أكبر حيوان على وجه الأرض؟", a: "الحوت الأزرق", c: "علوم" },
-            { q: "ما هو المكون الرئيسي للزجاج؟", a: "الرمل (السيليكا)", c: "علوم" },
-            { q: "ما هو أصلب مادة طبيعية على وجه الأرض؟", a: "الألماس", c: "علوم" },
-            { q: "ما هو الغاز الأكثر تواجداً في الغلاف الجوي؟", a: "النيتروجين", c: "علوم" },
-            { q: "ما هو الكوكب الأكبر في المجموعة الشمسية؟", a: "المشتري", c: "علوم" },
-            { q: "عضو في جسم الإنسان يضخ الدم؟", a: "القلب", c: "علوم" },
-            { q: "ما هي وحدة قياس القوة في الفيزياء؟", a: "نيوتن", c: "فيزياء" },
-            { q: "من هو مكتشف البنسلين؟", a: "ألكسندر فليمنغ", c: "علوم" },
-            { q: "ما هو الرمز الكيميائي للذهب؟", a: "Au", c: "كيمياء" },
-            { q: "ما هو הرمز الكيميائي للحديد؟", a: "Fe", c: "كيمياء" },
-            { q: "ما هو العضو المسؤول عن تنقية الدم من السموم؟", a: "الكلى", c: "علوم" },
-
-            // --- تاريخ ---
-            { q: "من هو مخترع المصباح الكهربائي؟", a: "توماس إديسون", c: "تاريخ" },
-            { q: "في أي عام بدأت الحرب العالمية الثانية؟", a: "1939", c: "تاريخ" },
-            { q: "من هو أول رائد فضاء في العالم؟", a: "يوري غاغارين", c: "تاريخ" },
-            { q: "من بنى أهرامات الجيزة؟", a: "الفراعنة", c: "تاريخ" },
-            { q: "من هو مكتشف الجاذبية الأرضية؟", a: "إسحاق نيوتن", c: "تاريخ" },
-            { q: "ما هي الدولة التي قدمت تمثال الحرية لأمريكا؟", a: "فرنسا", c: "تاريخ" },
-            { q: "من هو القائد المسلم الذي فتح الأندلس؟", a: "طارق بن زياد", c: "تاريخ إسلامي" },
-            { q: "في أي عام ميلادي وقعت غزوة بدر؟", a: "624 م", c: "تاريخ إسلامي" },
-            { q: "من هو مخترع الهاتف المعتمد رسمياً؟", a: "ألكسندر غراهام بيل", c: "تاريخ" },
-            { q: "ما هي الإمبراطورية التي بنت سور الصين العظيم؟", a: "أسرة مينغ", c: "تاريخ" },
-            { q: "من هو المؤسس الأول للمملكة العربية السعودية؟", a: "محمد بن سعود", c: "تاريخ" },
-            { q: "مدينة عربية كانت عاصمة للدولة الأموية؟", a: "دمشق", c: "تاريخ إسلامي" },
-            { q: "مدينة عربية كانت عاصمة للدولة العباسية في بدايتها؟", a: "الكوفة", c: "تاريخ إسلامي" },
-            { q: "متى انتهت الحرب العالمية الأولى؟", a: "1918", c: "تاريخ" },
-            { q: "من هو الفاتح المغولي الذي أسس إمبراطورية واسعة؟", a: "جنكيز خان", c: "تاريخ" },
-            { q: "من هو الخليفة الراشدي الأول؟", a: "أبو بكر الصديق", c: "تاريخ إسلامي" },
-
-            // --- فنون وثقافة عامة وأدب ---
-            { q: "من رسم لوحة الموناليزا؟", a: "ليوناردو دا فينشي", c: "فنون" },
-            { q: "من هو مؤلف كتاب البخلاء؟", a: "الجاحظ", c: "أدب" },
-            { q: "ما هي العملة الرسمية في اليابان؟", a: "الين", c: "ثقافة عامة" },
-            { q: "ما هو لون الزمرد؟", a: "أخضر", c: "ثقافة عامة" },
-            { q: "ما هي اللغة الأكثر تحدثاً في العالم كلغة أم؟", a: "الماندرين (الصينية)", c: "ثقافة عامة" },
-            { q: "كم عدد أيام السنة الكبيسة؟", a: "366", c: "ثقافة عامة" },
-            { q: "ما هو صوت الأسد؟", a: "زئير", c: "ثقافة عامة" },
-            { q: "ما هو اللون الذي ينتج عن خلط الأحمر والأصفر؟", a: "البرتقالي", c: "ثقافة عامة" },
-            { q: "من هو مؤلف رواية البؤساء؟", a: "فيكتور هوغو", c: "أدب" },
-            { q: "ما هو الحيوان الذي يُضرب به المثل في المكر؟", a: "الثعلب", c: "ثقافة عامة" },
-            { q: "ما هو الشيء الذي كلما أخذت منه كبر؟", a: "الحفرة", c: "ألغاز" },
-            { q: "ما هو صوت الحصان؟", a: "صهيل", c: "ثقافة عامة" },
-            { q: "ما هو صوت الضفدع؟", a: "نقيق", c: "ثقافة عامة" },
-            { q: "من هو شاعر النيل؟", a: "حافظ إبراهيم", c: "أدب" },
-            { q: "من هو الملقب بأمير الشعراء؟", a: "أحمد شوقي", c: "أدب" },
-            { q: "ما هي عاصمة كوريا الجنوبية؟", a: "سيول", c: "جغرافيا" },
-            { q: "ما هي أصغر قارة في العالم؟", a: "أستراليا", c: "جغرافيا" },
-            { q: "ما هي السورة الملقبة بقلب القرآن؟", a: "سورة يس", c: "ثقافة إسلامية" },
-            { q: "ما هي السورة الملقبة بعروس القرآن؟", a: "سورة الرحمن", c: "ثقافة إسلامية" },
-
-            // --- تكنولوجيا ---
-            { q: "من هو مؤسس شركة أبل؟", a: "ستيف جوبز", c: "تكنولوجيا" },
-            { q: "من هو مؤسس شركة مايكروسوفت؟", a: "بيل غيتس", c: "تكنولوجيا" },
-            { q: "ما هي الشبكة الاجتماعية التي تعتمد على التغريدات؟", a: "تويتر (X)", c: "تكنولوجيا" },
-            { q: "ما هو أشهر محرك بحث على الإنترنت؟", a: "جوجل", c: "تكنولوجيا" },
-            { q: "في أي عام تم إطلاق أول هاتف آيفون؟", a: "2007", c: "تكنولوجيا" },
-            { q: "ما هو نظام التشغيل الأكثر استخداماً للهواتف الذكية؟", a: "أندرويد", c: "تكنولوجيا" },
-            { q: "من هو مؤسس شركة فيسبوك؟", a: "مارك زوكربيرغ", c: "تكنولوجيا" },
-            { q: "إلى ماذا يرمز اختصار AI؟", a: "الذكاء الاصطناعي", c: "تكنولوجيا" },
-
-            // --- رياضة محلية وخليجية ---
-            { q: "كم عدد مرات فوز منتخب الكويت ببطولة كأس الخليج العربي؟", a: "10 مرات", c: "رياضة محلية" },
-            { q: "في أي عام فاز منتخب الكويت بكأس آسيا لكرة القدم؟", a: "1980", c: "رياضة محلية" },
-            { q: "من هو الهداف التاريخي لبطولات كأس الخليج العربي؟", a: "جاسم يعقوب", c: "رياضة محلية" },
-            { q: "في أي عام شارك منتخب الكويت في نهائيات كأس العالم؟", a: "1982", c: "رياضة محلية" },
-            { q: "ما هو النادي الكويتي الملقب بـ 'الزعيم'؟", a: "نادي العربي", c: "رياضة محلية" },
-            { q: "ما هو النادي الكويتي الملقب بـ 'الملكي'؟", a: "نادي القادسية", c: "رياضة محلية" },
-            { q: "ما هو النادي الكويتي الملقب بـ 'العميد'؟", a: "نادي الكويت", c: "رياضة محلية" },
-            { q: "من هو الرامي الكويتي الفائز بذهبية أولمبياد ريو 2016؟", a: "فهيد الديحاني", c: "رياضة محلية" },
-            { q: "من هو اللاعب الكويتي الملقب بـ 'المرعب'؟", a: "جاسم يعقوب", c: "رياضة محلية" },
-            { q: "من هو اللاعب الكويتي الملقب بـ 'الفارس الأسمر'؟", a: "فتحي كميل", c: "رياضة محلية" },
-            { q: "أين أقيمت بطولة خليجي 25 التي فاز بها العراق؟", a: "البصرة", c: "رياضة خليجية" },
-            { q: "النادي السعودي الملقب بـ 'الزعيم' هو؟", a: "الهلال", c: "رياضة خليجية" },
-            { q: "النادي السعودي الملقب بـ 'العالمي' هو؟", a: "النصر", c: "رياضة خليجية" },
-            { q: "النادي السعودي الملقب بـ 'العميد' هو؟", a: "الاتحاد", c: "رياضة خليجية" },
-            { q: "من هو الهداف التاريخي للمنتخب السعودي؟", a: "ماجد عبد الله", c: "رياضة خليجية" },
-            
-            // --- رياضة عربية ---
-            { q: "أكثر نادي مصري وأفريقي تتويجاً بدوري أبطال أفريقيا هو؟", a: "الأهلي المصري", c: "رياضة عربية" },
-            { q: "ما هو النادي المصري الملقب بـ 'مدرسة الفن والهندسة'؟", a: "الزمالك", c: "رياضة عربية" },
-            { q: "المنتخب العربي الوحيد الذي وصل لنصف نهائي كأس العالم (2022)؟", a: "المغرب", c: "رياضة عربية" },
-            { q: "أول دولة عربية تستضيف كأس العالم هي؟", a: "قطر", c: "رياضة عربية" },
-            { q: "من هو اللاعب المصري الملقب بـ 'فخر العرب'؟", a: "محمد صلاح", c: "رياضة عربية" },
-            { q: "أي دولة عربية فازت بكأس آسيا 2023؟", a: "قطر", c: "رياضة عربية" },
-            { q: "النادي المغربي الملقب بـ 'وداد الأمة' هو؟", a: "الوداد الرياضي", c: "رياضة عربية" },
-            { q: "العداء المغربي الأسطوري حامل الرقم القياسي في 1500 متر؟", a: "هشام الكروج", c: "رياضة عربية" },
-
-            // --- رياضة عالمية ---
-            { q: "كم عدد اللاعبين في فريق كرة القدم؟", a: "11", c: "رياضة" },
-            { q: "المنتخب الأكثر تتويجاً بكأس العالم لكرة القدم (5 مرات) هو؟", a: "البرازيل", c: "رياضة عالمية" },
-            { q: "كم عدد بطولات كأس العالم التي فازت بها الأرجنتين حتى 2022؟", a: "3 بطولات", c: "رياضة عالمية" },
-            { q: "من هو الهداف التاريخي لكأس العالم لكرة القدم (16 هدف)؟", a: "ميروسلاف كلوزه", c: "رياضة عالمية" },
-            { q: "النادي الأكثر تتويجاً بدوري أبطال أوروبا لكرة القدم هو؟", a: "ريال مدريد", c: "رياضة عالمية" },
-            { q: "في أي مدينة أقيمت دورة الألعاب الأولمبية الصيفية 2024؟", a: "باريس", c: "رياضة عالمية" },
-            { q: "من هو اللاعب الأكثر فوزاً بجائزة الكرة الذهبية؟", a: "ليونيل ميسي", c: "رياضة عالمية" },
-            { q: "في أي رياضة يشتهر الأسطورة 'مايكل جوردان'؟", a: "كرة السلة", c: "رياضة عالمية" },
-            { q: "دولة فازت بكأس العالم 2010؟", a: "إسبانيا", c: "رياضة عالمية" },
-            { q: "دولة فازت بكأس العالم 2014؟", a: "ألمانيا", c: "رياضة عالمية" },
-            { q: "دولة فازت بكأس العالم 2018؟", a: "فرنسا", c: "رياضة عالمية" },
-            { q: "في أي رياضة تستخدم مضارب التنس؟", a: "التنس (كرة المضرب)", c: "رياضة عالمية" },
-            { q: "ما هي الدولة المنظمة لكأس العالم 1998؟", a: "فرنسا", c: "رياضة عالمية" },
-            { q: "ما هو لون حزام النينجا الأعلى درجة في الكاراتيه والتايكوندو؟", a: "الأسود", c: "رياضة عالمية" }
-        ];
-
-        let auth, db, currentUser = null;
-        let currentRoomId = null;
-        let unsubscribeRoom = null;
-        let localRoomState = {};
-        
-        let isUsingCustomConfig = false;
-
-        async function startApp() {
-            try {
-                let firebaseConfig = null;
-
-                if (myFirebaseConfig && myFirebaseConfig.apiKey) {
-                    firebaseConfig = myFirebaseConfig;
-                    isUsingCustomConfig = true;
-                } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    firebaseConfig = JSON.parse(__firebase_config);
-                    isUsingCustomConfig = false;
-                } else {
-                    throw new Error("يرجى إدخال مفاتيح Firebase الخاصة بك في الكود بالأعلى");
-                }
-
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                const initAuth = async () => {
-                    if (!isUsingCustomConfig && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                };
-
-                await initAuth();
-
-                onAuthStateChanged(auth, (user) => {
-                    currentUser = user;
-                    if (user) {
-                        document.getElementById('loading-overlay').classList.add('hidden');
-                        document.getElementById('app-container').classList.remove('hidden');
-                        if (window.lucide) lucide.createIcons();
-                        showScreen('screen-login');
-                    }
-                });
-
-            } catch (err) {
-                console.error("Firebase Init Error:", err);
-                document.getElementById('loader-content').innerHTML = `
-                    <div class="text-red-500 mb-4"><i data-lucide="alert-triangle" class="w-16 h-16 mx-auto"></i></div>
-                    <p class="text-xl font-bold text-white text-center">لم يتم إعداد قاعدة البيانات بعد</p>
-                    <p class="text-slate-400 text-sm mt-2 text-center max-w-xs">${err.message}</p>
-                `;
-                if (window.lucide) lucide.createIcons();
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('loading-overlay').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                showScreen('screen-login');
+            } else {
+                signInAnonymously(auth);
             }
-        }
+        });
 
-        window.addEventListener('DOMContentLoaded', startApp);
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-v2';
-
-        function showScreen(screenId) {
-            ['screen-login', 'screen-lobby', 'screen-write', 'screen-choose', 'screen-results', 'screen-leaderboard'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.classList.add('hidden');
+        // دوال المساعدة
+        function showScreen(id) {
+            ['screen-login', 'screen-lobby', 'screen-write', 'screen-choose', 'screen-results', 'screen-leaderboard'].forEach(s => {
+                document.getElementById(s).classList.add('hidden');
             });
-            const target = document.getElementById(screenId);
-            if(target) {
-                target.classList.remove('hidden');
-                target.classList.add('animate-[slideIn_0.3s_ease-out]');
-                if (window.lucide) lucide.createIcons();
-            }
-        }
-
-        function showToast(msg, type = "success") {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            const color = type === 'success' ? 'bg-brand-success' : (type === 'error' ? 'bg-red-500' : 'bg-brand-primary');
-            toast.className = `toast-enter ${color} text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm pointer-events-auto mb-2`;
-            toast.textContent = msg;
-            container.appendChild(toast);
-            setTimeout(() => { toast.remove(); }, 3000);
+            document.getElementById(id).classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
         }
 
         window.createRoom = async () => {
-            if (!currentUser) return;
             const name = document.getElementById('input-nickname').value.trim();
-            if(!name) return showToast("أدخل اسمك أولاً", "error");
-            localStorage.setItem('nickname', name);
-
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            const code = Array.from({length: 5}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*31)]).join('');
-            currentRoomId = code;
-
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
-            try {
-                await setDoc(roomRef, {
-                    host: currentUser.uid,
-                    state: 'waiting',
-                    players: { [currentUser.uid]: { name: name, score: 0 } },
-                    // تعديل عدد الأسئلة إلى 25 سؤال مختار عشوائياً من الموسوعة
-                    questions: [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 25),
-                    currentQuestionIndex: 0,
-                    totalRounds: 25,
-                    answers: {}, choices: {}
-                });
-                listenToRoom(code);
-            } catch(e) { 
-                showToast("فشل إنشاء الغرفة. تأكد من إعدادات قاعدة البيانات.", "error"); 
-                document.getElementById('loading-overlay').classList.add('hidden'); 
-            }
+            if(!name) return alert("أدخل اسمك");
+            const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+            roomId = code;
+            
+            // اختيار 25 سؤال عشوائي من الملف الخارجي
+            const shuffled = [...window.questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 25);
+            
+            await setDoc(doc(db, "rooms", code), {
+                host: currentUser.uid,
+                state: 'waiting',
+                players: { [currentUser.uid]: { name, score: 0 } },
+                questions: shuffled,
+                currentQ: 0,
+                answers: {}, // إجابات اللاعبين المضللة
+                choices: {}  // اختيارات اللاعبين النهائية
+            });
+            listenToRoom(code);
         };
 
         window.joinRoom = async () => {
-            if (!currentUser) return;
             const name = document.getElementById('input-nickname').value.trim();
             const code = document.getElementById('input-room-code').value.trim().toUpperCase();
-            if(!name || code.length < 5) return showToast("أدخل الاسم والكود بشكل صحيح", "error");
+            if(!name || !code) return alert("أكمل البيانات");
             
-            document.getElementById('loading-overlay').classList.remove('hidden');
-
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
-            try {
-                const snap = await getDoc(roomRef);
-                if(snap.exists() && snap.data().state === 'waiting') {
-                    await updateDoc(roomRef, { [`players.${currentUser.uid}`]: { name, score: 0 } });
-                    listenToRoom(code);
-                } else { throw new Error(); }
-            } catch(e) { 
-                showToast("الغرفة غير موجودة أو بدأت بالفعل", "error"); 
-                document.getElementById('loading-overlay').classList.add('hidden'); 
-            }
+            const ref = doc(db, "rooms", code);
+            const snap = await getDoc(ref);
+            if(snap.exists()) {
+                await updateDoc(ref, { [`players.${currentUser.uid}`]: { name, score: 0 } });
+                roomId = code;
+                listenToRoom(code);
+            } else { alert("الغرفة غير موجودة"); }
         };
 
-        function listenToRoom(roomId) {
-            currentRoomId = roomId;
-            if (!currentUser) return;
-            if(unsubscribeRoom) unsubscribeRoom();
-
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
-            
-            unsubscribeRoom = onSnapshot(roomRef, (snap) => {
-                document.getElementById('loading-overlay').classList.add('hidden');
-                if(!snap.exists()) { showScreen('screen-login'); return; }
+        function listenToRoom(id) {
+            onSnapshot(doc(db, "rooms", id), (snap) => {
+                if(!snap.exists()) return;
                 const data = snap.data();
-                if(data.players && !data.players[currentUser.uid]) { 
-                    showToast("لقد تم طردك من الغرفة", "error");
-                    showScreen('screen-login'); 
-                    return; 
-                }
-                const prevState = localRoomState.state;
-                localRoomState = data;
-                updateUI(data, prevState);
-            }, (error) => {
-                console.error("Firestore error:", error);
+                localState = data;
+                updateUI(data);
             });
         }
 
-        function updateUI(data, prevState) {
+        function updateUI(data) {
             const isHost = data.host === currentUser.uid;
-            if(isHost) checkHostTransitions(data);
-
-            if(data.state === 'waiting') renderLobby(data, isHost);
-            else if(data.state === 'writing') setupWritePhase(data);
-            else if(data.state === 'choosing') setupChoosePhase(data);
-            else if(data.state === 'results') setupResultsPhase(data, isHost);
-            else if(data.state === 'leaderboard') renderLeaderboard(data, isHost);
-        }
-
-        function renderLobby(data, isHost) {
-            showScreen('screen-lobby');
-            document.getElementById('display-room-code').textContent = currentRoomId;
-            const list = document.getElementById('players-list');
-            list.innerHTML = Object.entries(data.players).map(([uid, p]) => `
-                <div class="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${uid === currentUser.uid ? 'bg-brand-primary' : 'bg-slate-700'}">
-                    ${p.name} ${uid === data.host ? '👑' : ''}
-                    ${isHost && uid !== currentUser.uid ? `<button onclick="kickPlayer('${uid}')" class="ml-2 text-red-400 font-bold hover:text-red-200">×</button>` : ''}
-                </div>
-            `).join('');
-            document.getElementById('player-count').textContent = Object.keys(data.players).length;
-            document.getElementById('host-controls').classList.toggle('hidden', !isHost);
-            document.getElementById('guest-waiting').classList.toggle('hidden', isHost);
-        }
-
-        window.kickPlayer = (uid) => {
-            if (!currentUser) return;
-            const players = { ...localRoomState.players };
-            delete players[uid];
-            updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { players });
-        };
-
-        window.startGame = () => {
-            if (!currentUser) return;
-            updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { 
-                state: 'writing', 
-                roundEndTime: Date.now() + 35000 
-            });
-        };
-        
-        window.submitFakeAnswer = () => {
-            if (!currentUser) return;
-            const ans = document.getElementById('input-fake-answer').value.trim();
-            if(!ans) return showToast("اكتب إجابة", "error");
-            updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { [`answers.${currentUser.uid}`]: ans });
-        };
-
-        function setupWritePhase(data) {
-            showScreen('screen-write');
-            const q = data.questions[data.currentQuestionIndex];
-            document.getElementById('question-category').textContent = q.c;
-            document.getElementById('question-text').textContent = q.q;
-            document.getElementById('round-number-write').textContent = data.currentQuestionIndex + 1;
-            const submitted = data.answers && data.answers[currentUser.uid];
-            document.getElementById('write-area').classList.toggle('hidden', !!submitted);
-            document.getElementById('write-waiting').classList.toggle('hidden', !submitted);
-            updateTimer(data.roundEndTime, 'timer-write');
-        }
-
-        function setupChoosePhase(data) {
-            showScreen('screen-choose');
-            const q = data.questions[data.currentQuestionIndex];
-            document.getElementById('question-text-choose').textContent = q.q;
-            const submitted = data.choices && data.choices[currentUser.uid];
-            document.getElementById('choose-waiting').classList.toggle('hidden', !submitted);
-            const area = document.getElementById('choices-area');
-            area.classList.toggle('hidden', !!submitted);
             
-            if(!submitted) {
-                const options = [q.a];
-                Object.entries(data.answers || {}).forEach(([uid, ans]) => {
-                    if (uid !== currentUser.uid) options.push(ans);
-                });
+            if(data.state === 'waiting') {
+                showScreen('screen-lobby');
+                document.getElementById('display-room-code').textContent = roomId;
+                document.getElementById('players-list').innerHTML = Object.values(data.players).map(p => `<span class="bg-slate-700 px-4 py-2 rounded-full font-bold">👤 ${p.name}</span>`).join('');
+                if(isHost) document.getElementById('host-controls').classList.remove('hidden');
+            } 
+            else if(data.state === 'writing') {
+                showScreen('screen-write');
+                const q = data.questions[data.currentQ];
+                document.getElementById('question-text').textContent = q.q;
+                document.getElementById('round-info-write').textContent = `السؤال ${data.currentQ + 1} من 25`;
                 
-                area.innerHTML = options.sort(() => 0.5 - Math.random()).map(opt => `
-                    <button onclick="submitChoice('${opt.replace(/'/g, "\\'")}')" class="p-4 bg-slate-800 rounded-xl font-bold border-2 border-slate-700 hover:border-brand-primary transition-all">
-                        ${opt}
-                    </button>
+                const hasSubmitted = data.answers && data.answers[currentUser.uid];
+                document.getElementById('write-form').classList.toggle('hidden', hasSubmitted);
+                document.getElementById('write-waiting').classList.toggle('hidden', !hasSubmitted);
+                
+                if(isHost) checkTransition(data, 'answers', 'choosing');
+            }
+            else if(data.state === 'choosing') {
+                showScreen('screen-choose');
+                const q = data.questions[data.currentQ];
+                const hasSelected = data.choices && data.choices[currentUser.uid];
+                
+                if(!hasSelected) {
+                    renderChoices(data);
+                } else {
+                    document.getElementById('choices-area').innerHTML = `<div class="text-center p-8 animate-pulse text-slate-400">تم تسجيل اختيارك.. بانتظار البقية</div>`;
+                }
+                
+                if(isHost) checkTransition(data, 'choices', 'results');
+            }
+            else if(data.state === 'results') {
+                showScreen('screen-results');
+                const q = data.questions[data.currentQ];
+                document.getElementById('correct-answer-display').textContent = q.a;
+                if(isHost) document.getElementById('host-next-round').classList.remove('hidden');
+                
+                // عرض من خدع من
+                let resHTML = "";
+                Object.entries(data.choices).forEach(([uid, choice]) => {
+                    const playerName = data.players[uid].name;
+                    if(choice === q.a) {
+                        resHTML += `<p class="bg-green-500/20 p-2 rounded">✅ <b>${playerName}</b> عرف الإجابة الصحيحة!</p>`;
+                    } else {
+                        // البحث عن صاحب الخدعة
+                        const tricksterUid = Object.keys(data.answers).find(key => data.answers[key] === choice);
+                        const tricksterName = tricksterUid ? data.players[tricksterUid].name : "غير معروف";
+                        resHTML += `<p class="bg-red-500/20 p-2 rounded">❌ <b>${playerName}</b> انطلت عليه خدعة <b>${tricksterName}</b></p>`;
+                    }
+                });
+                document.getElementById('results-details').innerHTML = resHTML;
+            }
+            else if(data.state === 'leaderboard') {
+                showScreen('screen-leaderboard');
+                const sorted = Object.values(data.players).sort((a,b) => b.score - a.score);
+                document.getElementById('leaderboard-list').innerHTML = sorted.map((p, i) => `
+                    <div class="flex justify-between bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <span>${i+1}. ${p.name}</span>
+                        <span class="text-brand-accent font-bold">${p.score} نقطة</span>
+                    </div>
                 `).join('');
             }
-            updateTimer(data.roundEndTime, 'timer-choose');
         }
 
-        window.submitChoice = (val) => {
-            if (!currentUser) return;
-            updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { [`choices.${currentUser.uid}`]: val });
+        window.startGame = () => {
+            updateDoc(doc(db, "rooms", roomId), { state: 'writing', answers: {}, choices: {} });
         };
 
-        function setupResultsPhase(data, isHost) {
-            showScreen('screen-results');
-            const q = data.questions[data.currentQuestionIndex];
-            document.getElementById('correct-answer-display').textContent = q.a;
-            document.getElementById('host-next-round').classList.toggle('hidden', !isHost);
-            const details = document.getElementById('results-details');
+        window.submitFakeAnswer = async () => {
+            const ans = document.getElementById('input-fake-answer').value.trim();
+            if(!ans) return;
+            // منع كتابة الإجابة الصحيحة كخدعة
+            if(ans === localState.questions[localState.currentQ].a) {
+                alert("لا يمكنك كتابة الإجابة الصحيحة كخدعة!");
+                return;
+            }
+            await updateDoc(doc(db, "rooms", roomId), { [`answers.${currentUser.uid}`]: ans });
+            document.getElementById('input-fake-answer').value = "";
+        };
+
+        function renderChoices(data) {
+            const q = data.questions[data.currentQ];
+            // تجميع الإجابة الصحيحة + كل إجابات اللاعبين المضللة
+            let allOptions = [q.a, ...Object.values(data.answers)];
+            // حذف التكرار وخلط الخيارات
+            allOptions = [...new Set(allOptions)].sort(() => 0.5 - Math.random());
             
-            details.innerHTML = Object.entries(data.choices || {}).map(([uid, choice]) => `
-                <p class="text-sm border-b border-slate-700 py-2">
-                    <span class="text-brand-accent font-bold">${data.players[uid]?.name || 'لاعب'}</span> 
-                    اختار: <span class="text-white">${choice}</span> 
-                    ${choice === q.a ? '<span class="text-brand-success font-bold">(صحيح!)</span>' : '<span class="text-red-400 font-bold">(خدعه صديقه!)</span>'}
-                </p>
-            `).join('') || '<p class="text-center text-slate-500">لم يقم أحد بالاختيار!</p>';
-        }
-
-        window.nextRound = () => {
-            if (!currentUser) return;
-            const nextIdx = localRoomState.currentQuestionIndex + 1;
-            const state = nextIdx >= localRoomState.totalRounds ? 'leaderboard' : 'writing';
-            updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { 
-                state, 
-                currentQuestionIndex: nextIdx, 
-                answers: {}, 
-                choices: {}, 
-                roundEndTime: Date.now() + 35000 
-            });
-        };
-
-        function renderLeaderboard(data, isHost) {
-            showScreen('screen-leaderboard');
-            const sorted = Object.values(data.players).sort((a,b) => b.score - a.score);
-            document.getElementById('leaderboard-list').innerHTML = sorted.map((p, i) => `
-                <div class="flex justify-between p-3 bg-slate-800 rounded-lg border border-slate-700 items-center">
-                    <span class="font-bold">${i+1}. ${p.name}</span>
-                    <span class="text-brand-accent font-mono text-xl">${p.score}</span>
-                </div>
+            const area = document.getElementById('choices-area');
+            area.innerHTML = allOptions.map(opt => `
+                <button onclick="submitChoice('${opt.replace(/'/g, "\\'")}')" class="bg-slate-800 p-4 rounded-xl border-2 border-slate-700 hover:border-brand-primary font-bold text-lg transition-all">
+                    ${opt}
+                </button>
             `).join('');
-            document.getElementById('host-play-again').classList.toggle('hidden', !isHost);
         }
 
-        window.playAgain = () => {
-            if (!currentUser) return;
-            const resetPlayers = { ...localRoomState.players };
-            Object.keys(resetPlayers).forEach(uid => resetPlayers[uid].score = 0);
-            updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { 
-                state: 'waiting', 
-                players: resetPlayers, 
-                questions: [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 25),
-                currentQuestionIndex: 0,
-                answers: {},
-                choices: {}
-            });
+        window.submitChoice = async (val) => {
+            await updateDoc(doc(db, "rooms", roomId), { [`choices.${currentUser.uid}`]: val });
         };
 
-        let activeTimer = null;
-        function updateTimer(end, id) {
-            const el = document.getElementById(id);
-            if(!el) return;
-            if(activeTimer) clearInterval(activeTimer);
-            const tick = () => {
-                const rem = Math.max(0, Math.floor((end - Date.now()) / 1000));
-                el.textContent = rem;
-                if (rem <= 5) el.classList.add('text-red-500', 'animate-pulse');
-                else el.classList.remove('text-red-500', 'animate-pulse');
-                if(rem <= 0) clearInterval(activeTimer);
-            };
-            activeTimer = setInterval(tick, 1000);
-            tick();
-        }
+        window.nextRound = async () => {
+            const nextQ = localState.currentQ + 1;
+            if(nextQ >= 25) {
+                await updateDoc(doc(db, "rooms", roomId), { state: 'leaderboard' });
+            } else {
+                await updateDoc(doc(db, "rooms", roomId), { state: 'writing', currentQ: nextQ, answers: {}, choices: {} });
+            }
+        };
 
-        async function checkHostTransitions(data) {
-            if (!currentUser) return;
+        // دالة للمدير للانتقال التلقائي عند اكتمال الإجابات
+        function checkTransition(data, field, nextState) {
             const pCount = Object.keys(data.players).length;
-            const now = Date.now();
-            
-            if(data.state === 'writing') {
-                if(Object.keys(data.answers || {}).length === pCount || now > data.roundEndTime) {
-                    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { 
-                        state: 'choosing', 
-                        roundEndTime: now + 25000 
-                    });
-                }
-            } else if(data.state === 'choosing') {
-                if(Object.keys(data.choices || {}).length === pCount || now > data.roundEndTime) {
-                    let nextPlayers = JSON.parse(JSON.stringify(data.players));
-                    const correct = data.questions[data.currentQuestionIndex].a;
-                    
-                    Object.entries(data.choices || {}).forEach(([uid, val]) => {
-                        if(val === correct) {
-                            nextPlayers[uid].score += 1000;
-                        } else {
-                            const authorEntry = Object.entries(data.answers || {}).find(([auid, a]) => a === val);
-                            const authorUid = authorEntry ? authorEntry[0] : null;
-                            if(authorUid && authorUid !== uid && nextPlayers[authorUid]) {
-                                nextPlayers[authorUid].score += 1000;
-                            }
-                        }
-                    });
-                    
-                    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { 
-                        state: 'results', 
-                        players: nextPlayers,
-                        roundEndTime: 0
-                    });
+            const sCount = Object.keys(data[field] || {}).length;
+            if(sCount >= pCount && pCount > 0) {
+                // إذا كنا ننتقل للنتائج، نحسب النقاط
+                if(nextState === 'results') {
+                    calculateScores(data);
+                } else {
+                    updateDoc(doc(db, "rooms", roomId), { state: nextState });
                 }
             }
+        }
+
+        async function calculateScores(data) {
+            const q = data.questions[data.currentQ];
+            let newPlayers = {...data.players};
+            
+            Object.entries(data.choices).forEach(([uid, choice]) => {
+                if(choice === q.a) {
+                    newPlayers[uid].score += 1000; // نقطة للإجابة الصحيحة
+                } else {
+                    // العثور على اللاعب الذي كتب هذه الخدعة لإعطائه نقاط
+                    const tricksterUid = Object.keys(data.answers).find(key => data.answers[key] === choice);
+                    if(tricksterUid && newPlayers[tricksterUid]) {
+                        newPlayers[tricksterUid].score += 500; // نقطة لكل شخص خدعته
+                    }
+                }
+            });
+            await updateDoc(doc(db, "rooms", roomId), { state: 'results', players: newPlayers });
         }
     </script>
 </body>
