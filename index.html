@@ -298,18 +298,14 @@
                 if (typeof __firebase_config === 'undefined' || !__firebase_config) {
                     throw new Error("Missing Firebase Configuration");
                 }
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                };
+                const firebaseConfig = {
+  apiKey: "AIzaSyD5vPVQnEEnmx1yv6BGrtDVzmEjQ3PcP1Q",
+  authDomain: "smartgame-dbb51.firebaseapp.com",
+  projectId: "smartgame-dbb51",
+  storageBucket: "smartgame-dbb51.firebasestorage.app",
+  messagingSenderId: "943840300648",
+  appId: "1:943840300648:web:31f18ee9ea6d92ba96b5dd"
+};
 
                 await initAuth();
 
