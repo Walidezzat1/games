@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لعبة الخداع الذكي | Multiplayer Quiz</title>
-    <script src="questions.js"></script>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -49,9 +49,6 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 10px; }
-
-        .correct-answer-glow { box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); border-color: #10b981; }
-        .fake-answer-glow { box-shadow: 0 0 20px rgba(236, 72, 153, 0.4); border-color: #ec4899; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 relative text-right">
@@ -75,8 +72,8 @@
             </div>
 
             <div>
-                <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-white to-brand-secondary pb-2">الخداع الذكي</h1>
-                <div class="inline-block px-4 py-1 bg-brand-accent/20 border border-brand-accent/30 rounded-full">
+                <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-white to-brand-secondary pb-2 border-b border-white/10">الخداع الذكي</h1>
+                <div class="inline-block px-4 py-1 bg-brand-accent/20 border border-brand-accent/30 rounded-full mt-4">
                     <p class="text-brand-accent font-bold text-sm tracking-wide">بإشراف أ/ وليد عزت - موجه فني الفيزياء</p>
                 </div>
             </div>
@@ -110,7 +107,6 @@
             
             <div class="w-full flex flex-col md:flex-row gap-4 mb-8">
                 <div class="flex-1 bg-slate-800/80 p-6 rounded-2xl border border-slate-700 flex flex-col items-center justify-center relative overflow-hidden group">
-                    <div class="absolute inset-0 bg-brand-accent/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <span class="text-slate-500 text-xs font-bold mb-1 uppercase tracking-tighter">كود الغرفة للمشاركة</span>
                     <div class="flex items-center gap-3">
                         <span id="display-room-code" class="text-4xl font-mono font-black text-brand-accent tracking-[0.2em]">----</span>
@@ -126,7 +122,7 @@
             </div>
             
             <div class="w-full space-y-3 mb-8">
-                <div id="players-list" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div id="players-list" class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-center">
                     <!-- Players list -->
                 </div>
             </div>
@@ -135,173 +131,109 @@
                 <button onclick="startGame()" class="btn-primary w-full max-w-sm py-4 rounded-2xl font-black text-xl shadow-2xl flex items-center justify-center gap-3">
                     <i data-lucide="play" class="w-6 h-6"></i> ابدأ التحدي الآن
                 </button>
-                <p class="text-xs text-slate-500 font-bold">أنت مدير الغرفة، يمكنك بدء اللعبة عندما يكتمل العدد.</p>
             </div>
             <div id="guest-waiting" class="w-full flex flex-col items-center text-center space-y-4">
-                <div class="relative">
-                    <div class="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                        <div class="w-2 h-2 bg-brand-primary rounded-full"></div>
-                    </div>
-                </div>
+                <div class="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
                 <p class="text-slate-400 font-medium italic">في انتظار مدير الغرفة لإطلاق صافرة البداية...</p>
             </div>
         </div>
 
-        <!-- Screen 3: Writing Fake Answer -->
+        <!-- Screen 3: Write Screen -->
         <div id="screen-write" class="w-full hidden flex-col items-center space-y-6">
             <div class="w-full flex justify-between items-center bg-slate-900/60 backdrop-blur-md px-6 py-4 rounded-3xl border border-slate-800 shadow-xl">
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">الجولة الحالية</span>
-                    <span class="font-black text-brand-secondary text-lg"><span id="round-number-write">1</span> / 5</span>
-                </div>
+                <span class="font-black text-brand-secondary text-lg">السؤال <span id="round-number-write">1</span> من 25</span>
                 <div class="flex items-center gap-3 bg-slate-800 px-4 py-2 rounded-2xl border border-slate-700">
                     <i data-lucide="timer" class="w-5 h-5 text-brand-accent"></i>
-                    <span id="timer-write" class="font-mono text-2xl text-white font-black w-8 text-center">30</span>
+                    <span id="timer-write" class="font-mono text-2xl text-white font-black">30</span>
                 </div>
             </div>
 
-            <div class="w-full glass-panel rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10">
-                    <i data-lucide="help-circle" class="w-24 h-24"></i>
-                </div>
-                
+            <div class="w-full glass-panel rounded-3xl p-8 text-center shadow-2xl">
                 <span id="question-category" class="inline-block px-3 py-1 bg-brand-primary/20 text-brand-primary text-[10px] font-black rounded-full mb-4 uppercase tracking-widest">الفئة</span>
-                <h2 id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed mb-10 relative z-10">...</h2>
+                <h2 id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed mb-10">...</h2>
                 
-                <div id="write-area" class="space-y-6 relative z-10">
-                    <div class="space-y-2">
-                        <p class="text-slate-400 text-sm font-medium">اكتب إجابة خاطئة "منطقية" لتخدع أصدقاءك!</p>
-                        <input type="text" id="input-fake-answer" placeholder="مثلاً: الجاذبية هي قوة طاردة..." class="w-full px-6 py-5 rounded-2xl bg-slate-800/80 border-2 border-slate-700 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-xl shadow-inner transition-all">
-                    </div>
-                    <button onclick="submitFakeAnswer()" class="btn-primary w-full py-5 rounded-2xl font-black text-xl shadow-xl uppercase tracking-wider">
-                        إرسال الخدعة
-                    </button>
+                <div id="write-area" class="space-y-6">
+                    <input type="text" id="input-fake-answer" placeholder="اكتب إجابتك المضللة هنا..." class="w-full px-6 py-5 rounded-2xl bg-slate-800/80 border-2 border-slate-700 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-xl shadow-inner">
+                    <button onclick="submitFakeAnswer()" class="btn-primary w-full py-5 rounded-2xl font-black text-xl shadow-xl">تأكيد الإجابة</button>
                 </div>
                 
-                <div id="write-waiting" class="hidden flex-col items-center py-10 text-center animate-pulse">
-                    <div class="w-20 h-20 bg-brand-success/20 rounded-full flex items-center justify-center mb-4">
-                        <i data-lucide="check-circle-2" class="w-10 h-10 text-brand-success"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold text-white mb-2">خدعتك في طريقها للتنفيذ!</h3>
-                    <p class="text-slate-400">ننتظر باقي المشتركين لإظهار الخيارات...</p>
+                <div id="write-waiting" class="hidden flex-col items-center py-10 animate-pulse text-center">
+                    <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-4"></i>
+                    <p class="text-slate-400">في انتظار باقي اللاعبين...</p>
                 </div>
             </div>
         </div>
 
-        <!-- Screen 4: Choosing Correct Answer -->
+        <!-- Screen 4: Choose Screen -->
         <div id="screen-choose" class="w-full hidden flex-col items-center space-y-6">
             <div class="w-full flex justify-between items-center bg-slate-900/60 backdrop-blur-md px-6 py-4 rounded-3xl border border-slate-800 shadow-xl">
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">اختر بعناية</span>
-                    <span class="font-black text-brand-secondary text-lg"><span id="round-number-choose">1</span> / 5</span>
-                </div>
-                <div class="flex items-center gap-3 bg-slate-800 px-4 py-2 rounded-2xl border border-slate-700">
-                    <i data-lucide="timer" class="w-5 h-5 text-brand-accent"></i>
-                    <span id="timer-choose" class="font-mono text-2xl text-white font-black w-8 text-center">20</span>
+                <span class="font-black text-brand-secondary text-lg">السؤال <span id="round-number-choose">1</span> من 25</span>
+                <div class="flex items-center gap-3 bg-slate-800 px-4 py-2 rounded-2xl border border-slate-700 text-brand-accent">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                    <span id="timer-choose" class="font-mono text-2xl font-black">20</span>
                 </div>
             </div>
 
             <div class="w-full glass-panel rounded-3xl p-8 text-center shadow-2xl">
                 <h2 id="question-text-choose" class="text-xl md:text-2xl font-bold leading-relaxed mb-8">...</h2>
-                
-                <div id="choices-area" class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto p-2">
-                    <!-- Choices generated here -->
-                </div>
-
-                <div id="choose-waiting" class="hidden flex-col items-center py-10 mt-4 text-center">
-                    <div class="w-16 h-16 bg-brand-primary/20 rounded-full flex items-center justify-center mb-4">
-                        <i data-lucide="user-check" class="w-8 h-8 text-brand-primary"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-white mb-2">تم تثبيت اختيارك!</h3>
-                    <p class="text-slate-400">هل وقعت في الفخ أم كشفت الحقيقة؟</p>
+                <div id="choices-area" class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto p-2"></div>
+                <div id="choose-waiting" class="hidden flex-col items-center py-10 text-center">
+                    <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-4"></i>
+                    <p class="text-slate-400 text-xl font-bold">تم اختيار إجابتك!</p>
                 </div>
             </div>
         </div>
 
-        <!-- Screen 5: Round Results -->
+        <!-- Screen 5: Results Screen -->
         <div id="screen-results" class="w-full hidden flex-col items-center space-y-6">
             <div class="w-full glass-panel rounded-3xl p-8 text-center shadow-2xl border-t-4 border-t-brand-primary">
-                <h2 class="text-3xl font-black text-white mb-6 uppercase tracking-tighter italic">كشف المستور</h2>
-                
-                <div class="bg-brand-success/10 border border-brand-success/30 rounded-3xl p-6 mb-8 relative overflow-hidden group">
-                    <div class="absolute inset-0 bg-brand-success/5 animate-pulse"></div>
-                    <p class="text-[10px] text-brand-success font-black mb-2 uppercase tracking-[0.3em]">الإجابة الحقيقية</p>
-                    <h3 id="correct-answer-display" class="text-3xl font-black text-white relative z-10">...</h3>
+                <h2 class="text-3xl font-black text-white mb-6 italic">نتيجة السؤال</h2>
+                <div class="bg-brand-success/10 border border-brand-success/30 rounded-3xl p-6 mb-8">
+                    <p class="text-[10px] text-brand-success font-black mb-2 uppercase">الإجابة الصحيحة هي:</p>
+                    <h3 id="correct-answer-display" class="text-3xl font-black text-white">...</h3>
                 </div>
-
-                <div class="text-right space-y-3">
-                    <p class="text-slate-500 text-[10px] font-black uppercase mb-2 mr-2 tracking-widest">توزيع الاختيارات</p>
-                    <div id="results-details" class="space-y-3 max-h-[35vh] overflow-y-auto p-2">
-                        <!-- Detailed results -->
-                    </div>
-                </div>
-
+                <div id="results-details" class="space-y-3 text-right max-h-[35vh] overflow-y-auto p-4 bg-slate-900/40 rounded-3xl border border-slate-800"></div>
                 <div id="host-next-round" class="hidden mt-10">
                     <button onclick="nextRound()" class="btn-primary w-full py-5 rounded-2xl font-black text-xl shadow-2xl flex items-center justify-center gap-3">
-                        الجولة التالية <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                        السؤال التالي <i data-lucide="arrow-left" class="w-6 h-6"></i>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Screen 6: Final Leaderboard -->
+        <!-- Screen 6: Leaderboard -->
         <div id="screen-leaderboard" class="w-full hidden flex-col items-center space-y-6">
-            <div class="w-full glass-panel rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-brand-accent via-white to-brand-secondary"></div>
-                
-                <div class="relative py-6">
-                    <i data-lucide="crown" class="w-20 h-20 text-brand-accent mx-auto mb-4 drop-shadow-[0_0_25px_rgba(245,158,11,0.6)] animate-bounce-slow"></i>
-                    <h2 class="text-4xl font-black text-white mb-2">لوحة الشرف</h2>
-                    <p class="text-slate-400 text-sm font-bold">بإشراف أ/ وليد عزت</p>
-                </div>
-                
-                <div id="leaderboard-list" class="space-y-3 mb-10 max-h-[45vh] overflow-y-auto p-4 bg-slate-900/40 rounded-3xl border border-slate-800">
-                    <!-- Leaderboard list -->
-                </div>
-
-                <div class="flex flex-col sm:flex-row justify-center gap-4">
-                    <button onclick="leaveRoom()" class="bg-slate-700 hover:bg-slate-600 text-white px-8 py-4 rounded-2xl font-black transition-all border border-slate-600 shadow-xl flex-1">
-                        الخروج للرئيسية
-                    </button>
+            <div class="w-full glass-panel rounded-3xl p-8 text-center shadow-2xl relative">
+                <i data-lucide="crown" class="w-20 h-20 text-brand-accent mx-auto mb-4 drop-shadow-lg"></i>
+                <h2 class="text-4xl font-black text-white mb-6">الترتيب النهائي</h2>
+                <div id="leaderboard-list" class="space-y-3 mb-10 max-h-[45vh] overflow-y-auto p-4 bg-slate-900/40 rounded-3xl border border-slate-800"></div>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button onclick="leaveRoom()" class="bg-slate-700 hover:bg-slate-600 text-white px-8 py-4 rounded-2xl font-black transition-all border border-slate-600 flex-1">الخروج</button>
                     <div id="host-play-again" class="hidden flex-1">
-                        <button onclick="playAgain()" class="btn-primary w-full py-4 rounded-2xl font-black shadow-xl text-xl">
-                            تحدي جديد
-                        </button>
+                        <button onclick="playAgain()" class="btn-primary w-full py-4 rounded-2xl font-black shadow-xl">تحدي جديد (25 سؤالاً)</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Footer -->
-        <footer class="w-full text-center space-y-2 py-6">
-            <div class="h-[1px] w-1/4 bg-slate-800 mx-auto"></div>
-            <p class="text-slate-500 text-[10px] font-bold tracking-widest uppercase">تم التطوير تحت إشراف قسم الفيزياء - أ/ وليد عزت</p>
+        <footer class="w-full text-center py-6 text-slate-500 text-xs font-bold tracking-widest uppercase border-t border-white/5">
+            إعداد موجّه الفيزياء أ/وليد عزت
         </footer>
     </div>
 
-    <!-- Loading / Offline Prompt Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-8 text-center overflow-hidden">
+    <!-- Enhanced Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-8 text-center">
         <div id="loader-content" class="flex flex-col items-center">
-            <div class="relative mb-8">
-                <div class="w-20 h-20 border-4 border-brand-primary/20 rounded-full"></div>
-                <div class="absolute inset-0 w-20 h-20 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
-            </div>
-            <p class="text-2xl font-black text-white mb-2">جاري مزامنة المختبر...</p>
-            <p class="text-slate-400 text-sm animate-pulse">نحاول الاتصال بخوادم الخداع الذكي</p>
+            <div class="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-6"></div>
+            <p class="text-xl font-bold text-white mb-2">جاري الاتصال بالخادم...</p>
+            <p class="text-slate-400 text-sm animate-pulse">نحاول إعداد بيئة اللعب الجماعي.</p>
         </div>
-
         <div id="local-mode-prompt" class="hidden flex-col items-center max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div class="w-24 h-24 bg-brand-secondary/20 rounded-3xl flex items-center justify-center mb-8 rotate-12 shadow-2xl shadow-brand-secondary/20 border border-brand-secondary/30">
-                <i data-lucide="cpu" class="w-12 h-12 text-brand-secondary"></i>
-            </div>
-            <h2 class="text-3xl font-black text-white mb-4 italic">وضع المحاكاة (بدون إنترنت)</h2>
-            <p class="text-slate-300 mb-10 leading-relaxed font-medium">
-                يبدو أن خوادم اللعبة ليست جاهزة أو لم يتم ضبط <span class="text-brand-accent font-black">Firebase</span>. 
-                لا تقلق! يمكنك تجربة اللعبة الآن ضد <span class="text-brand-primary underline underline-offset-4">لاعبين آليين (Bots)</span> في وضع المحاكاة.
-            </p>
+            <i data-lucide="cpu" class="w-16 h-16 text-brand-secondary mb-8"></i>
+            <h2 class="text-3xl font-black text-white mb-4">وضع المحاكاة المحلي</h2>
+            <p class="text-slate-300 mb-10 leading-relaxed font-medium">تعذر الاتصال بقاعدة البيانات. يمكنك تجربة اللعبة ضد "بوتات" آليين في وضع المحاكاة.</p>
             <button onclick="startLocalMode()" class="btn-primary w-full py-5 rounded-2xl font-black text-xl shadow-2xl flex items-center justify-center gap-4">
-                <i data-lucide="zap" class="w-6 h-6"></i> ابدأ وضع المحاكاة الآن
+                <i data-lucide="zap" class="w-6 h-6"></i> ابدأ المحاكاة الآن
             </button>
         </div>
     </div>
@@ -309,29 +241,40 @@
     <!-- Toast Container -->
     <div id="toast-container" class="fixed bottom-6 right-6 z-[110] flex flex-col gap-3 pointer-events-none"></div>
 
-    <!-- Logic Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🔬 مجموعة الأسئلة (متخصصة في الفيزياء والعلوم)
+        // 🔬 موسوعة الأسئلة المحدثة
         // ==========================================
         const questionDatabase = [
-            { q: "ما هو العنصر الذي يمثل 78% من الغلاف الجوي للأرض؟", a: "النيتروجين", c: "فيزياء الجو" },
-            { q: "ما هي وحدة قياس القوة في النظام الدولي للوحدات؟", a: "النيوتن", c: "ميكانيكا" },
-            { q: "من هو العالم الذي اكتشف الجاذبية الأرضية؟", a: "إسحاق نيوتن", c: "تاريخ العلم" },
-            { q: "ما هي الحالة الرابعة للمادة بعد الصلبة والسائلة والغازية؟", a: "البلازما", c: "ديناميكا حرارية" },
-            { q: "ما هو الكوكب الذي يمتلك أقوى مجال مغناطيسي؟", a: "المشتري", c: "فلك" },
-            { q: "ما هو المعدن الوحيد الذي يكون سائلاً في درجة حرارة الغرفة؟", a: "الزئبق", c: "كيمياء فيزيائية" },
-            { q: "ما هي سرعة الضوء التقريبية في الفراغ؟", a: "300 ألف كم/ث", c: "بصريات" },
-            { q: "ما هو الجهاز المستخدم لقياس الضغط الجوي؟", a: "البارومتر", c: "أجهزة قياس" },
-            { q: "ما هو أبرد مكان طبيعي معروف في الكون؟", a: "سديم بوميرانج", c: "فضاء" },
-            { q: "من هو العالم الملقب بأبو الفيزياء الحديثة؟", a: "ألبرت آينشتاين", c: "تاريخ العلم" },
-            { q: "ما هو الغاز الذي يسمى بـ 'الثلج الجاف' عندما يتجمد؟", a: "ثاني أكسيد الكربون", c: "كيمياء" },
-            { q: "في أي جولة فازت الكويت بكأس الخليج للمرة العاشرة؟", a: "خليجي 20", c: "رياضة كويتية" },
-            { q: "من هو الرامي الكويتي الذي حقق أول ذهبية أولمبية للكويت؟", a: "فهيد الديحاني", c: "رياضة كويتية" }
+            { q: "ما هو العنصر الذي يمثل 78% من الغلاف الجوي؟", a: "النيتروجين", c: "علوم" },
+            { q: "ما هي وحدة قياس القوة في النظام الدولي؟", a: "النيوتن", c: "فيزياء" },
+            { q: "من هو العالم الذي اكتشف الجاذبية؟", a: "إسحاق نيوتن", c: "فيزياء" },
+            { q: "ما هي الحالة الرابعة للمادة؟", a: "البلازما", c: "فيزياء" },
+            { q: "ما هو الكوكب الملقب بالكوكب الأحمر؟", a: "المريخ", c: "فلك" },
+            { q: "ما هو المعدن السائل في حرارة الغرفة؟", a: "الزئبق", c: "كيمياء" },
+            { q: "كم عدد قارات العالم؟", a: "سبع قارات", c: "جغرافيا" },
+            { q: "من رسم لوحة الموناليزا؟", a: "ليوناردو دا فينشي", c: "فنون" },
+            { q: "ما هي عاصمة اليابان؟", a: "طوكيو", c: "جغرافيا" },
+            { q: "أين يقع برج إيفل؟", a: "باريس", c: "جغرافيا" },
+            { q: "كم عدد مرات فوز الكويت بكأس الخليج؟", a: "10 مرات", c: "رياضة كويتية" },
+            { q: "في أي عام فاز منتخب الكويت بكأس آسيا؟", a: "1980", c: "رياضة كويتية" },
+            { q: "من هو الهداف التاريخي لكأس الخليج؟", a: "جاسم يعقوب", c: "رياضة كويتية" },
+            { q: "ما هو النادي الملقب بـ 'العالمي' في السعودية؟", a: "النصر", c: "رياضة خليجية" },
+            { q: "كم عدد اللاعبين في فريق كرة القدم؟", a: "11", c: "رياضة" },
+            { q: "ما هو أطول نهر في العالم؟", a: "نهر النيل", c: "جغرافيا" },
+            { q: "ما هو الرمز الكيميائي للذهب؟", a: "Au", c: "كيمياء" },
+            { q: "من مخترع المصباح الكهربائي؟", a: "توماس إديسون", c: "تاريخ" },
+            { q: "ما هو أسرع حيوان بري؟", a: "الفهد", c: "علوم" },
+            { q: "ما هو اللون الذي ينتج عن خلط الأحمر والأصفر؟", a: "البرتقالي", c: "ثقافة" },
+            { q: "ما هي عاصمة إيطاليا؟", a: "روما", c: "جغرافيا" },
+            { q: "من هو الخليفة الراشدي الأول؟", a: "أبو بكر الصديق", c: "تاريخ" },
+            { q: "ما هو أعلى جبل في العالم؟", a: "إيفرست", c: "جغرافيا" },
+            { q: "ما هو الغاز الذي تمتصه النباتات؟", a: "ثاني أكسيد الكربون", c: "علوم" },
+            { q: "من هو مكتشف البنسلين؟", a: "ألكسندر فليمنغ", c: "علوم" }
         ];
 
         let auth, db, currentUser = null;
@@ -339,47 +282,29 @@
         let unsubscribeRoom = null;
         let localRoomState = {};
         let timerInterval = null;
-        let isHostHeartbeatActive = false;
 
-        // وضع المحاكاة (Offline Mode)
+        // وضع المحاكاة
         window.useLocalMode = false;
         let localModeData = null;
         let localModeListeners = [];
 
-        // إعدادات Firebase
         const startApp = async () => {
             try {
-                // الأولوية لإعدادات المنصة، ثم الإعدادات اليدوية، ثم وضع المحاكاة
-                let config = null;
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    config = JSON.parse(__firebase_config);
-                } else {
-                    // إعدادات Firebase اليدوية الخاصة بك
-                    config = {
-                        apiKey: "AIzaSyD5vPVQnEEnmx1yv6BGrtDVzmEjQ3PcP1Q",
-                        authDomain: "smartgame-dbb51.firebaseapp.com",
-                        projectId: "smartgame-dbb51",
-                        storageBucket: "smartgame-dbb51.firebasestorage.app",
-                        messagingSenderId: "943840300648",
-                        appId: "1:943840300648:web:31f18ee9ea6d92ba96b5dd"
-                    };
-                }
-
-                if (!config.apiKey && !config.projectId) throw new Error("Missing Config");
+                // إعدادات Firebase الخاصة بالمستخدم
+                const config = {
+                    apiKey: "AIzaSyD5vPVQnEEnmx1yv6BGrtDVzmEjQ3PcP1Q",
+                    authDomain: "smartgame-dbb51.firebaseapp.com",
+                    projectId: "smartgame-dbb51",
+                    storageBucket: "smartgame-dbb51.firebasestorage.app",
+                    messagingSenderId: "943840300648",
+                    appId: "1:943840300648:web:31f18ee9ea6d92ba96b5dd"
+                };
 
                 const app = initializeApp(config);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                };
-
-                await initAuth();
+                await signInAnonymously(auth);
 
                 onAuthStateChanged(auth, (user) => {
                     currentUser = user;
@@ -390,9 +315,8 @@
                         lucide.createIcons();
                     }
                 });
-
             } catch (err) {
-                console.warn("Falling back to local simulation mode...");
+                console.warn("Falling back to local simulation mode:", err);
                 document.getElementById('loader-content').classList.add('hidden');
                 document.getElementById('local-mode-prompt').classList.remove('hidden');
                 lucide.createIcons();
@@ -401,16 +325,15 @@
 
         window.addEventListener('DOMContentLoaded', startApp);
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-physics-v1';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-v2';
 
-        // 🤖 وضع المحاكاة (Simulation Mode Logic)
         window.startLocalMode = () => {
             window.useLocalMode = true;
-            currentUser = { uid: 'player-offline-' + Math.random().toString(36).substr(2, 5) };
+            currentUser = { uid: 'local-player-' + Math.random().toString(36).substr(2, 5) };
             document.getElementById('loading-overlay').classList.add('hidden');
             document.getElementById('app-container').classList.remove('hidden');
             showScreen('screen-login');
-            showToast("تم تفعيل وضع المحاكاة بنجاح!", "primary");
+            showToast("تم تفعيل وضع المحاكاة!", "primary");
             lucide.createIcons();
         };
 
@@ -443,7 +366,6 @@
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), updates);
         };
 
-        // 🛠 وظائف الواجهة والتحكم
         window.showScreen = (screenId) => {
             ['screen-login', 'screen-lobby', 'screen-write', 'screen-choose', 'screen-results', 'screen-leaderboard'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
@@ -462,15 +384,14 @@
             const toast = document.createElement('div');
             const colorClass = type === 'success' ? 'bg-brand-success' : (type === 'error' ? 'bg-red-500' : 'bg-brand-primary');
             toast.className = `toast-enter ${colorClass} text-white px-6 py-3 rounded-2xl shadow-2xl font-bold flex items-center gap-3 pointer-events-auto`;
-            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'info'}" class="w-5 h-5"></i> ${msg}`;
+            toast.textContent = msg;
             container.appendChild(toast);
-            lucide.createIcons();
-            setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-10', 'transition-all', 'duration-500'); setTimeout(() => toast.remove(), 500); }, 3000);
+            setTimeout(() => { toast.remove(); }, 3000);
         };
 
         window.createRoom = async () => {
             const name = document.getElementById('input-nickname').value.trim();
-            if (!name) return showToast("يرجى إدخل اسمك أولاً", "error");
+            if (!name) return showToast("يرجى إدخال اسمك أولاً", "error");
             
             document.getElementById('loading-overlay').classList.remove('hidden');
             const code = Array.from({length: 5}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*31)]).join('');
@@ -480,9 +401,9 @@
                 host: currentUser.uid,
                 state: 'waiting',
                 players: { [currentUser.uid]: { name, score: 0 } },
-                questions: [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 5),
+                questions: [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 25),
                 currentQuestionIndex: 0,
-                totalRounds: 5,
+                totalRounds: 25,
                 answers: {}, choices: {},
                 roundEndTime: 0
             };
@@ -516,7 +437,7 @@
                     setTimeout(() => listenToRoom(code), 500);
                 } else {
                     document.getElementById('loading-overlay').classList.add('hidden');
-                    showToast("الغرفة غير موجودة في وضع المحاكاة", "error");
+                    showToast("الغرفة غير موجودة", "error");
                 }
                 return;
             }
@@ -529,7 +450,7 @@
                     listenToRoom(code);
                 } else {
                     document.getElementById('loading-overlay').classList.add('hidden');
-                    showToast("الغرفة ممتلئة أو غير موجودة", "error");
+                    showToast("الغرفة غير موجودة أو بدأت بالفعل", "error");
                 }
             } catch (e) {
                 document.getElementById('loading-overlay').classList.add('hidden');
@@ -537,18 +458,16 @@
             }
         };
 
-        const listenToRoom = (roomId) => {
+        function listenToRoom(roomId) {
             currentRoomId = roomId;
             if (unsubscribeRoom) unsubscribeRoom();
 
             if (window.useLocalMode) {
                 localModeListeners = [(snap) => {
-                    const data = snap.data();
-                    localRoomState = data;
-                    updateUI(data);
+                    localRoomState = snap.data();
+                    updateUI(snap.data());
                 }];
                 triggerLocalUpdate();
-                startHostHeartbeat();
                 return;
             }
 
@@ -556,151 +475,139 @@
             unsubscribeRoom = onSnapshot(roomRef, (snap) => {
                 document.getElementById('loading-overlay').classList.add('hidden');
                 if (!snap.exists()) { showScreen('screen-login'); return; }
-                const data = snap.data();
-                localRoomState = data;
-                updateUI(data);
-                if (data.host === currentUser.uid) startHostHeartbeat();
+                localRoomState = snap.data();
+                updateUI(snap.data());
             });
-        };
+        }
 
-        const updateUI = (data) => {
+        function updateUI(data) {
             const isHost = data.host === currentUser.uid;
-            
-            if (data.state === 'waiting') {
-                showScreen('screen-lobby');
-                document.getElementById('display-room-code').textContent = currentRoomId;
-                document.getElementById('player-count').textContent = Object.keys(data.players).length;
-                const list = document.getElementById('players-list');
-                list.innerHTML = Object.entries(data.players).map(([uid, p]) => `
-                    <div class="px-4 py-3 rounded-2xl border ${uid === currentUser.uid ? 'border-brand-primary bg-brand-primary/10 text-brand-primary' : 'border-slate-700 bg-slate-800 text-slate-300'} text-sm font-bold text-center">
-                        ${p.name} ${uid === data.host ? '👑' : ''}
-                    </div>
-                `).join('');
-                document.getElementById('host-controls').classList.toggle('hidden', !isHost);
-                document.getElementById('guest-waiting').classList.toggle('hidden', isHost);
-            }
-            
-            else if (data.state === 'writing') {
-                showScreen('screen-write');
-                const q = data.questions[data.currentQuestionIndex];
-                document.getElementById('question-category').textContent = q.c;
-                document.getElementById('question-text').textContent = q.q;
-                document.getElementById('round-number-write').textContent = data.currentQuestionIndex + 1;
-                const submitted = data.answers && data.answers[currentUser.uid];
-                document.getElementById('write-area').classList.toggle('hidden', !!submitted);
-                document.getElementById('write-waiting').classList.toggle('hidden', !submitted);
-                startTimer(data.roundEndTime, 'timer-write');
-            }
-            
-            else if (data.state === 'choosing') {
-                showScreen('screen-choose');
-                const q = data.questions[data.currentQuestionIndex];
-                document.getElementById('question-text-choose').textContent = q.q;
-                document.getElementById('round-number-choose').textContent = data.currentQuestionIndex + 1;
-                const submitted = data.choices && data.choices[currentUser.uid];
-                document.getElementById('choose-waiting').classList.toggle('hidden', !submitted);
-                const area = document.getElementById('choices-area');
-                area.classList.toggle('hidden', !!submitted);
-                
-                if (!submitted) {
-                    const options = [q.a, ...Object.values(data.answers || {})].filter((v, i, a) => a.indexOf(v) === i);
-                    area.innerHTML = options.sort(() => 0.5 - Math.random()).map(opt => `
-                        <button onclick="submitChoice('${opt.replace(/'/g, "\\'")}')" class="p-5 bg-slate-800/80 rounded-2xl font-bold border-2 border-slate-700 hover:border-brand-primary transition-all text-lg shadow-xl">
-                            ${opt}
-                        </button>
-                    `).join('');
-                }
-                startTimer(data.roundEndTime, 'timer-choose');
-            }
-            
-            else if (data.state === 'results') {
-                showScreen('screen-results');
-                const q = data.questions[data.currentQuestionIndex];
-                document.getElementById('correct-answer-display').textContent = q.a;
-                document.getElementById('host-next-round').classList.toggle('hidden', !isHost);
-                
-                const details = document.getElementById('results-details');
-                details.innerHTML = Object.entries(data.choices || {}).map(([uid, choice]) => {
-                    const p = data.players[uid];
-                    const isCorrect = choice === q.a;
-                    return `
-                        <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-800 border ${isCorrect ? 'border-brand-success/40' : 'border-red-500/40'}">
-                            <span class="font-bold text-white">${p?.name || 'لاعب غادر'}</span>
-                            <div class="text-left">
-                                <span class="text-[10px] text-slate-500 block">اختار</span>
-                                <span class="font-bold ${isCorrect ? 'text-brand-success' : 'text-red-400'}">${choice}</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-            
-            else if (data.state === 'leaderboard') {
-                showScreen('screen-leaderboard');
-                const sorted = Object.values(data.players).sort((a,b) => b.score - a.score);
-                document.getElementById('leaderboard-list').innerHTML = sorted.map((p, i) => `
-                    <div class="flex justify-between p-5 bg-slate-800/60 rounded-2xl border ${i === 0 ? 'border-brand-accent shadow-lg shadow-brand-accent/5' : 'border-slate-700'} items-center">
-                        <div class="flex items-center gap-4">
-                            <span class="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center font-black text-xs">${i+1}</span>
-                            <span class="font-black text-lg">${p.name}</span>
-                        </div>
-                        <span class="text-brand-accent font-mono text-2xl font-black">${p.score}</span>
-                    </div>
-                `).join('');
-                document.getElementById('host-play-again').classList.toggle('hidden', !isHost);
-            }
-        };
+            if (isHost) checkHostTransitions(data);
+
+            if (data.state === 'waiting') renderLobby(data, isHost);
+            else if (data.state === 'writing') setupWritePhase(data);
+            else if (data.state === 'choosing') setupChoosePhase(data);
+            else if (data.state === 'results') setupResultsPhase(data, isHost);
+            else if (data.state === 'leaderboard') renderLeaderboard(data, isHost);
+        }
+
+        function renderLobby(data, isHost) {
+            showScreen('screen-lobby');
+            document.getElementById('display-room-code').textContent = currentRoomId;
+            document.getElementById('player-count').textContent = Object.keys(data.players).length;
+            const list = document.getElementById('players-list');
+            list.innerHTML = Object.entries(data.players).map(([uid, p]) => `
+                <div class="px-4 py-3 rounded-2xl border ${uid === currentUser.uid ? 'border-brand-primary bg-brand-primary/10 text-brand-primary' : 'border-slate-700 bg-slate-800 text-slate-300'} text-sm font-bold">
+                    ${p.name} ${uid === data.host ? '👑' : ''}
+                </div>
+            `).join('');
+            document.getElementById('host-controls').classList.toggle('hidden', !isHost);
+            document.getElementById('guest-waiting').classList.toggle('hidden', isHost);
+        }
 
         window.startGame = async () => {
-            await setRoomState({ 
-                state: 'writing', 
-                roundEndTime: Date.now() + 35000 
-            });
+            await setRoomState({ state: 'writing', roundEndTime: Date.now() + 35000 });
         };
 
         window.submitFakeAnswer = async () => {
             const val = document.getElementById('input-fake-answer').value.trim();
-            if (!val) return showToast("اكتب شيئاً لتخدعهم!", "error");
+            if (!val) return showToast("اكتب شيئاً!", "error");
             if (val === localRoomState.questions[localRoomState.currentQuestionIndex].a) {
-                return showToast("هذه هي الإجابة الصحيحة! اكتب خدعة.", "error");
+                return showToast("هذه الإجابة الصحيحة! اكتب خدعة.", "error");
             }
             await setRoomState({ [`answers.${currentUser.uid}`]: val });
             document.getElementById('input-fake-answer').value = '';
         };
 
+        function setupWritePhase(data) {
+            showScreen('screen-write');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('question-category').textContent = q.c;
+            document.getElementById('question-text').textContent = q.q;
+            document.getElementById('round-number-write').textContent = data.currentQuestionIndex + 1;
+            const submitted = data.answers && data.answers[currentUser.uid];
+            document.getElementById('write-area').classList.toggle('hidden', !!submitted);
+            document.getElementById('write-waiting').classList.toggle('hidden', !submitted);
+            updateTimer(data.roundEndTime, 'timer-write');
+        }
+
+        function setupChoosePhase(data) {
+            showScreen('screen-choose');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('question-text-choose').textContent = q.q;
+            document.getElementById('round-number-choose').textContent = data.currentQuestionIndex + 1;
+            const submitted = data.choices && data.choices[currentUser.uid];
+            document.getElementById('choose-waiting').classList.toggle('hidden', !submitted);
+            const area = document.getElementById('choices-area');
+            area.classList.toggle('hidden', !!submitted);
+            
+            if (!submitted) {
+                const options = [q.a, ...Object.values(data.answers || {})].filter((v, i, a) => a.indexOf(v) === i);
+                area.innerHTML = options.sort(() => 0.5 - Math.random()).map(opt => `
+                    <button onclick="submitChoice('${opt.replace(/'/g, "\\'")}')" class="p-5 bg-slate-800/80 rounded-2xl font-bold border-2 border-slate-700 hover:border-brand-primary transition-all text-lg shadow-xl">
+                        ${opt}
+                    </button>
+                `).join('');
+            }
+            updateTimer(data.roundEndTime, 'timer-choose');
+        }
+
         window.submitChoice = async (val) => {
             await setRoomState({ [`choices.${currentUser.uid}`]: val });
         };
+
+        function setupResultsPhase(data, isHost) {
+            showScreen('screen-results');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('correct-answer-display').textContent = q.a;
+            document.getElementById('host-next-round').classList.toggle('hidden', !isHost);
+            const details = document.getElementById('results-details');
+            details.innerHTML = Object.entries(data.choices || {}).map(([uid, choice]) => {
+                const isCorrect = choice === q.a;
+                return `
+                    <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-800 border ${isCorrect ? 'border-brand-success/40' : 'border-red-500/40'}">
+                        <span class="font-bold text-white">${data.players[uid]?.name || 'لاعب'}</span>
+                        <span class="font-bold ${isCorrect ? 'text-brand-success' : 'text-red-400'}">${choice}</span>
+                    </div>
+                `;
+            }).join('');
+        }
 
         window.nextRound = async () => {
             const nextIdx = localRoomState.currentQuestionIndex + 1;
             const newState = nextIdx >= localRoomState.totalRounds ? 'leaderboard' : 'writing';
             await setRoomState({
-                state: newState,
-                currentQuestionIndex: nextIdx,
-                answers: {}, choices: {},
-                roundEndTime: newState === 'writing' ? Date.now() + 35000 : 0
+                state: newState, currentQuestionIndex: nextIdx,
+                answers: {}, choices: {}, roundEndTime: newState === 'writing' ? Date.now() + 35000 : 0
             });
         };
+
+        function renderLeaderboard(data, isHost) {
+            showScreen('screen-leaderboard');
+            const sorted = Object.values(data.players).sort((a,b) => b.score - a.score);
+            document.getElementById('leaderboard-list').innerHTML = sorted.map((p, i) => `
+                <div class="flex justify-between p-5 bg-slate-800/60 rounded-2xl border ${i === 0 ? 'border-brand-accent shadow-lg' : 'border-slate-700'} items-center">
+                    <span class="font-black text-lg">${i+1}. ${p.name}</span>
+                    <span class="text-brand-accent font-mono text-2xl font-black">${p.score}</span>
+                </div>
+            `).join('');
+            document.getElementById('host-play-again').classList.toggle('hidden', !isHost);
+        }
 
         window.playAgain = async () => {
             const resetPlayers = { ...localRoomState.players };
             Object.keys(resetPlayers).forEach(k => resetPlayers[k].score = 0);
             await setRoomState({
-                state: 'waiting',
-                players: resetPlayers,
-                questions: [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 5),
-                currentQuestionIndex: 0,
-                answers: {}, choices: {},
-                roundEndTime: 0
+                state: 'waiting', players: resetPlayers,
+                questions: [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 25),
+                currentQuestionIndex: 0, answers: {}, choices: {}, roundEndTime: 0
             });
         };
 
-        const startTimer = (end, elId) => {
+        const updateTimer = (end, elId) => {
             if (timerInterval) clearInterval(timerInterval);
             const el = document.getElementById(elId);
             if (!el) return;
-            
             const update = () => {
                 const rem = Math.max(0, Math.floor((end - Date.now()) / 1000));
                 el.textContent = rem;
@@ -712,39 +619,19 @@
             update();
         };
 
-        const startHostHeartbeat = () => {
-            if (isHostHeartbeatActive) return;
-            isHostHeartbeatActive = true;
-            setInterval(() => {
-                if (localRoomState && localRoomState.host === currentUser?.uid) {
-                    processHeartbeat();
-                }
-            }, 1000);
-        };
-
-        const processHeartbeat = async () => {
-            const data = localRoomState;
+        const checkHostTransitions = async (data) => {
             const now = Date.now();
             const pCount = Object.keys(data.players).length;
 
-            // محاكاة البوتات في وضع التجربة
-            if (window.useLocalMode && data.state === 'writing') {
-                ['bot-1', 'bot-2'].forEach(bid => {
-                    if (!data.answers[bid] && Math.random() < 0.05) {
-                        const fakeAnss = ["الحديد", "المريخ", "بنيوتن", "1000", "البعد الخامس", "الصوت", "آينشتاين"];
-                        setRoomState({ [`answers.${bid}`]: fakeAnss[Math.floor(Math.random()*fakeAnss.length)] });
-                    }
-                });
-            }
-
-            if (data.state === 'writing') {
-                const ansCount = Object.keys(data.answers || {}).length;
-                if (ansCount === pCount || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
-                    await setRoomState({ state: 'choosing', roundEndTime: now + 25000 });
-                }
-            } else if (data.state === 'choosing') {
-                // بوتات تختار في وضع التجربة
-                if (window.useLocalMode) {
+            if (window.useLocalMode) {
+                // محاكاة إجابات البوتات في وضع التجربة
+                if (data.state === 'writing') {
+                    ['bot-1', 'bot-2'].forEach(bid => {
+                        if (!data.answers[bid] && Math.random() < 0.05) {
+                            setRoomState({ [`answers.${bid}`]: "إجابة وهمية من البوت" });
+                        }
+                    });
+                } else if (data.state === 'choosing') {
                     ['bot-1', 'bot-2'].forEach(bid => {
                         if (!data.choices[bid] && Math.random() < 0.05) {
                             const opts = [data.questions[data.currentQuestionIndex].a, ...Object.values(data.answers)];
@@ -752,8 +639,14 @@
                         }
                     });
                 }
-                const choiceCount = Object.keys(data.choices || {}).length;
-                if (choiceCount === pCount || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
+            }
+
+            if (data.state === 'writing') {
+                if (Object.keys(data.answers || {}).length === pCount || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
+                    await setRoomState({ state: 'choosing', roundEndTime: now + 25000 });
+                }
+            } else if (data.state === 'choosing') {
+                if (Object.keys(data.choices || {}).length === pCount || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
                     calculateScores(data);
                 }
             }
@@ -762,7 +655,6 @@
         const calculateScores = async (data) => {
             const nextPlayers = JSON.parse(JSON.stringify(data.players));
             const correct = data.questions[data.currentQuestionIndex].a;
-            
             Object.entries(data.choices || {}).forEach(([uid, choice]) => {
                 if (choice === correct) {
                     if (nextPlayers[uid]) nextPlayers[uid].score += 1000;
@@ -783,7 +675,7 @@
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            showToast("تم نسخ الكود! شاركه مع أصدقائك.");
+            showToast("تم نسخ الكود!");
         };
 
         window.leaveRoom = () => {
