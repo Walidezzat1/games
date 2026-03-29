@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الخداع الذكي | Multiplayer Quiz</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#1e1b4b',
+                            primary: '#4f46e5',
+                            secondary: '#ec4899',
+                            accent: '#f59e0b',
+                            success: '#10b981'
+                        }
+                    },
+                    animation: {
+                        'bounce-slow': 'bounce 3s infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; color: white; overflow-x: hidden; }
+        .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .btn-primary { background: linear-gradient(135deg, #4f46e5, #ec4899); transition: transform 0.2s; }
+        .btn-primary:hover { transform: scale(1.05); }
+        .btn-primary:active { transform: scale(0.95); }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+
+    <!-- Background Elements -->
+    <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-brand-primary rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-pulse"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-brand-secondary rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- UI Container -->
+    <div id="app-container" class="w-full max-w-2xl mx-auto flex flex-col items-center space-y-6 hidden">
+        
+        <!-- Screen 1: Login / Nickname -->
+        <div id="screen-login" class="w-full glass-panel rounded-2xl p-8 flex flex-col items-center space-y-6 text-center">
+            <div class="w-24 h-24 bg-brand-primary rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/50 mb-2">
+                <i data-lucide="brain-circuit" class="w-12 h-12 text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-secondary">الخداع الذكي</h1>
+                <p class="text-brand-accent font-bold mt-2 text-lg">من تصميم الموجه الفني للفيزياء أ/ وليد عزت</p>
+            </div>
+            
+            <p class="text-gray-300">أدخل اسماً مستعاراً للبدء في اللعب</p>
+            
+            <input type="text" id="input-nickname" placeholder="اسمك المستعار..." class="w-full max-w-xs px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-lg" maxlength="15">
+            
+            <div class="flex flex-col w-full max-w-xs space-y-3 pt-4">
+                <button onclick="createRoom()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> إنشاء غرفة جديدة
+                </button>
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-700"></div>
+                    <span class="flex-shrink-0 mx-4 text-slate-500 text-sm">أو</span>
+                    <div class="flex-grow border-t border-slate-700"></div>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="input-room-code" placeholder="كود الغرفة" class="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-brand-secondary text-center uppercase font-mono tracking-widest" maxlength="5">
+                    <button onclick="joinRoom()" class="bg-slate-700 hover:bg-slate-600 text-white px-6 rounded-xl font-bold transition-colors">
+                        انضمام
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: Lobby -->
+        <div id="screen-lobby" class="w-full glass-panel rounded-2xl p-6 hidden flex-col items-center">
+            <h2 class="text-2xl font-bold mb-2">غرفة الانتظار</h2>
+            <div class="bg-slate-800 px-6 py-3 rounded-xl border border-slate-700 flex items-center gap-4 mb-6">
+                <span class="text-gray-400">كود الغرفة:</span>
+                <span id="display-room-code" class="text-3xl font-mono font-bold text-brand-accent tracking-widest">----</span>
+                <button onclick="copyRoomCode()" class="text-slate-400 hover:text-white transition-colors" title="نسخ الكود">
+                    <i data-lucide="copy" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="w-full bg-slate-800/50 rounded-xl p-4 mb-6 min-h-[150px]">
+                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-brand-primary"></i> اللاعبون المتصلون (<span id="player-count">0</span>)
+                </h3>
+                <div id="players-list" class="flex flex-wrap gap-3 max-h-48 overflow-y-auto p-2">
+                    <!-- Players will be added here dynamically -->
+                </div>
+            </div>
+
+            <div id="host-controls" class="w-full hidden flex-col items-center">
+                <button onclick="startGame()" class="btn-primary w-full max-w-xs py-3 rounded-xl font-bold text-lg shadow-lg shadow-brand-primary/30 flex items-center justify-center gap-2">
+                    <i data-lucide="play" class="w-5 h-5"></i> ابدأ اللعبة الآن
+                </button>
+                <p class="text-sm text-slate-400 mt-3 text-center">أنت مدير الغرفة. انتظر دخول جميع أصدقائك قبل البدء.</p>
+            </div>
+            <div id="guest-waiting" class="w-full flex flex-col items-center">
+                <div class="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p class="text-slate-400">في انتظار مدير الغرفة لبدء اللعبة...</p>
+            </div>
+        </div>
+
+        <!-- Screen 3: Game - Write Fake Answer -->
+        <div id="screen-write" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full flex justify-between items-center bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
+                <span class="font-bold text-brand-secondary">الجولة <span id="round-number-write">1</span></span>
+                <div class="flex items-center gap-2 font-mono text-xl text-brand-accent font-bold">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                    <span id="timer-write">30</span>
+                </div>
+            </div>
+
+            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
+                <span class="text-sm text-brand-primary font-bold mb-2 block" id="question-category">العلوم</span>
+                <h2 id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed mb-6">...</h2>
+                
+                <div id="write-area" class="space-y-4">
+                    <p class="text-slate-300 text-sm mb-2">اكتب إجابة خاطئة تبدو صحيحة لتخدع أصدقاءك!</p>
+                    <input type="text" id="input-fake-answer" placeholder="إجابتك المضللة هنا..." class="w-full px-4 py-4 rounded-xl bg-slate-800 border-2 border-slate-600 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-lg">
+                    <button onclick="submitFakeAnswer()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg">
+                        تأكيد الإجابة
+                    </button>
+                </div>
+                
+                <div id="write-waiting" class="hidden flex-col items-center py-6">
+                    <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-3"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">تم تسجيل إجابتك!</h3>
+                    <p class="text-slate-400">في انتظار باقي اللاعبين <span class="animate-pulse">...</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 4: Game - Choose Correct Answer -->
+        <div id="screen-choose" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full flex justify-between items-center bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
+                <span class="font-bold text-brand-secondary">الجولة <span id="round-number-choose">1</span></span>
+                <div class="flex items-center gap-2 font-mono text-xl text-brand-accent font-bold">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                    <span id="timer-choose">20</span>
+                </div>
+            </div>
+
+            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
+                <h2 id="question-text-choose" class="text-xl md:text-2xl font-bold leading-relaxed mb-6">...</h2>
+                
+                <div id="choices-area" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto p-2">
+                    <!-- Choice buttons generated here -->
+                </div>
+
+                <div id="choose-waiting" class="hidden flex-col items-center py-6 mt-4">
+                    <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-3"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">تم اختيار إجابتك!</h3>
+                    <p class="text-slate-400">في انتظار باقي اللاعبين <span class="animate-pulse">...</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 5: Results -->
+        <div id="screen-results" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
+                <h2 class="text-3xl font-bold text-white mb-2">نتائج الجولة</h2>
+                <p id="results-question" class="text-slate-300 mb-6 font-semibold">...</p>
+                
+                <div class="bg-brand-success/20 border border-brand-success/50 rounded-xl p-4 mb-8">
+                    <p class="text-sm text-brand-success mb-1">الإجابة الصحيحة هي:</p>
+                    <h3 id="correct-answer-display" class="text-2xl font-bold text-white">...</h3>
+                </div>
+
+                <div id="results-details" class="space-y-4 text-right max-h-[40vh] overflow-y-auto p-4 bg-slate-800/50 rounded-xl">
+                    <!-- Detailed results (who tricked who) -->
+                </div>
+
+                <div id="host-next-round" class="hidden mt-8">
+                    <button onclick="nextRound()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
+                        التالي <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 6: Leaderboard -->
+        <div id="screen-leaderboard" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand-accent to-brand-secondary"></div>
+                
+                <i data-lucide="trophy" class="w-16 h-16 text-brand-accent mx-auto mb-4 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]"></i>
+                <h2 class="text-3xl font-bold text-white mb-6">الترتيب النهائي</h2>
+                
+                <div id="leaderboard-list" class="space-y-3 mb-8 max-h-[50vh] overflow-y-auto p-2">
+                    <!-- Leaderboard entries -->
+                </div>
+
+                <div class="flex justify-center gap-4">
+                    <button onclick="leaveRoom()" class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-colors">
+                        الخروج للرئيسية
+                    </button>
+                    <div id="host-play-again" class="hidden">
+                        <button onclick="playAgain()" class="btn-primary px-6 py-3 rounded-xl font-bold shadow-lg">
+                            لعب جولة جديدة
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Footer -->
+        <footer class="w-full text-center text-slate-500 text-xs py-4">
+            تصميم وإعداد: أ/ وليد عزت (موجه فني الفيزياء)
+        </footer>
+
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900/90 z-50 flex flex-col items-center justify-center">
+        <div class="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-xl font-bold text-white tracking-wider">جاري التحميل...</p>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // 1. Database of Questions
+        // ==========================================
+        const questionDatabase = [
+            { q: "ما هو أطول نهر في العالم؟", a: "نهر النيل", c: "جغرافيا" },
+            { q: "ما هو المعدن السائل في درجة حرارة الغرفة؟", a: "الزئبق", c: "علوم" },
+            { q: "من رسم لوحة الموناليزا؟", a: "ليوناردو دا فينشي", c: "فنون" },
+            { q: "ما هو الكوكب الملقب بالكوكب الأحمر؟", a: "المريخ", c: "علوم" },
+            { q: "في أي قارة تقع دولة البرازيل؟", a: "أمريكا الجنوبية", c: "جغرافيا" },
+            { q: "ما هي عاصمة اليابان؟", a: "طوكيو", c: "جغرافيا" },
+            { q: "من هو مخترع المصباح الكهربائي؟", a: "توماس إديسون", c: "تاريخ" },
+            { q: "ما هو العنصر الكيميائي الذي رمزه O؟", a: "الأكسجين", c: "علوم" },
+            { q: "ما هو الحيوان البري الأسرع في العالم؟", a: "الفهد", c: "علوم" },
+            { q: "كم عدد قارات العالم؟", a: "سبع قارات", c: "جغرافيا" },
+            { q: "ما هو أقرب كوكب للشمس؟", a: "عطارد", c: "علوم" },
+            { q: "في أي عام بدأت الحرب العالمية الثانية؟", a: "1939", c: "تاريخ" },
+            { q: "من هو مؤلف كتاب البخلاء؟", a: "الجاحظ", c: "أدب" },
+            { q: "ما هو الغاز الذي تمتصه النباتات؟", a: "ثاني أكسيد الكربون", c: "علوم" },
+            { q: "أين يقع تمثال الحرية؟", a: "نيويورك", c: "جغرافيا" },
+            { q: "ما هي أكبر دولة في العالم من حيث المساحة؟", a: "روسيا", c: "جغرافيا" },
+            { q: "كم عدد اللاعبين في فريق كرة القدم؟", a: "11", c: "رياضة" },
+            { q: "ما هي اللغة الأكثر تحدثاً في العالم كلغة أم؟", a: "الماندرين", c: "ثقافة عامة" },
+            { q: "أين يقع برج إيفل؟", a: "باريس", c: "جغرافيا" },
+            { q: "ما هو أعلى جبل في العالم؟", a: "إيفرست", c: "جغرافيا" },
+            { q: "من هو أول رائد فضاء في العالم؟", a: "يوري غاغارين", c: "تاريخ" },
+            { q: "كم عدد مرات فوز منتخب الكويت ببطولة كأس الخليج العربي؟", a: "10 مرات", c: "رياضة محلية" },
+            { q: "في أي عام فاز منتخب الكويت بكأس آسيا لكرة القدم؟", a: "1980", c: "رياضة محلية" },
+            { q: "ما هو النادي الكويتي الملقب بـ 'الزعيم'؟", a: "نادي العربي", c: "رياضة محلية" },
+            { q: "المنتخب العربي الوحيد الذي وصل لنصف نهائي كأس العالم 2022 هو؟", a: "المغرب", c: "رياضة عربية" },
+            { q: "أول دولة عربية تستضيف كأس العالم هي؟", a: "قطر", c: "رياضة عربية" },
+            { q: "من هو الهداف التاريخي لدوري أبطال أوروبا؟", a: "كريستيانو رونالدو", c: "رياضة عالمية" },
+            { q: "النادي الأكثر تتويجاً بدوري أبطال أوروبا هو؟", a: "ريال مدريد", c: "رياضة عالمية" }
+        ];
+
+        // ==========================================
+        // 2. Firebase & Setup
+        // ==========================================
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-app';
+        
+        let currentUser = null;
+        let currentRoomId = null;
+        let unsubscribeRoom = null;
+        let myName = localStorage.getItem('nickname') || '';
+        let timerInterval = null;
+        let audioCtx = null;
+
+        lucide.createIcons();
+
+        function initAudio() {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            try {
+                if(!audioCtx) return;
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                if(type === 'click') {
+                    osc.frequency.setValueAtTime(600, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(); osc.stop(now + 0.1);
+                } else if(type === 'success') {
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.linearRampToValueAtTime(800, now + 0.2);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(); osc.stop(now + 0.3);
+                }
+            } catch(e) {}
+        }
+
+        if(myName) document.getElementById('input-nickname').value = myName;
+
+        // ==========================================
+        // 3. Authentication
+        // ==========================================
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                showScreen('screen-login');
+            }
+        });
+
+        initAuth();
+
+        // ==========================================
+        // 4. Game Functions
+        // ==========================================
+
+        function showScreen(screenId) {
+            ['screen-login', 'screen-lobby', 'screen-write', 'screen-choose', 'screen-results', 'screen-leaderboard'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function showToast(msg, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const color = type === 'success' ? 'bg-brand-success' : 'bg-red-500';
+            toast.className = `toast-enter ${color} text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm pointer-events-auto`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let res = '';
+            for (let i = 0; i < 5; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
+            return res;
+        }
+
+        window.createRoom = async () => {
+            const name = document.getElementById('input-nickname').value.trim();
+            if(!name) { showToast("أدخل اسمك أولاً", "error"); return; }
+            myName = name;
+            localStorage.setItem('nickname', name);
+            initAudio(); playSound('click');
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            const code = generateRoomCode();
+            currentRoomId = code;
+            
+            const shuffled = [...questionDatabase].sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, 5);
+
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
+            await setDoc(roomRef, {
+                host: currentUser.uid,
+                state: 'waiting',
+                players: { [currentUser.uid]: { name: myName, score: 0 } },
+                questions: selected,
+                currentQuestionIndex: 0,
+                answers: {},
+                choices: {},
+                totalRounds: 5
+            });
+            listenToRoom(code);
+        };
+
+        window.joinRoom = async () => {
+            const name = document.getElementById('input-nickname').value.trim();
+            const code = document.getElementById('input-room-code').value.trim().toUpperCase();
+            if(!name || code.length !== 5) { showToast("بيانات غير مكتملة", "error"); return; }
+            myName = name;
+            localStorage.setItem('nickname', name);
+            initAudio(); playSound('click');
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
+            const snap = await getDoc(roomRef);
+            if(snap.exists()) {
+                currentRoomId = code;
+                await updateDoc(roomRef, { [`players.${currentUser.uid}`]: { name: myName, score: 0 } });
+                listenToRoom(code);
+            } else {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                showToast("الغرفة غير موجودة", "error");
+            }
+        };
+
+        function listenToRoom(roomId) {
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+            if(unsubscribeRoom) unsubscribeRoom();
+            unsubscribeRoom = onSnapshot(roomRef, (snap) => {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                if(!snap.exists()) return;
+                updateUI(snap.data());
+            }, (err) => showToast("خطأ في الاتصال", "error"));
+        }
+
+        let localRoomState = null;
+        function updateUI(data) {
+            const prevState = localRoomState?.state;
+            localRoomState = data;
+            const isHost = data.host === currentUser.uid;
+
+            if(isHost) checkHostTransitions(data);
+
+            switch(data.state) {
+                case 'waiting':
+                    showScreen('screen-lobby');
+                    renderLobby(data, isHost);
+                    break;
+                case 'writing':
+                    if(prevState !== 'writing') setupWritePhase(data);
+                    renderWritePhase(data);
+                    break;
+                case 'choosing':
+                    if(prevState !== 'choosing') setupChoosePhase(data);
+                    renderChoosePhase(data);
+                    break;
+                case 'results':
+                    if(prevState !== 'results') setupResultsPhase(data, isHost);
+                    break;
+                case 'leaderboard':
+                    renderLeaderboard(data, isHost);
+                    break;
+            }
+        }
+
+        function renderLobby(data, isHost) {
+            document.getElementById('display-room-code').textContent = currentRoomId;
+            const list = document.getElementById('players-list');
+            list.innerHTML = '';
+            const pCount = Object.keys(data.players).length;
+            document.getElementById('player-count').textContent = pCount;
+            
+            for(let id in data.players) {
+                const div = document.createElement('div');
+                div.className = "bg-slate-700 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2";
+                div.innerHTML = `<i data-lucide="user" class="w-4 h-4"></i> ${data.players[id].name}`;
+                list.appendChild(div);
+            }
+            lucide.createIcons();
+            document.getElementById('host-controls').classList.toggle('hidden', !isHost);
+            document.getElementById('guest-waiting').classList.toggle('hidden', isHost);
+        }
+
+        window.startGame = async () => {
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            await updateDoc(roomRef, { state: 'writing', roundEndTime: Date.now() + 35000 });
+        };
+
+        function setupWritePhase(data) {
+            showScreen('screen-write');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('question-category').textContent = q.c;
+            document.getElementById('question-text').textContent = q.q;
+            document.getElementById('round-number-write').textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
+            document.getElementById('write-area').classList.remove('hidden');
+            document.getElementById('write-waiting').classList.add('hidden');
+            startTimer(data.roundEndTime, 'timer-write');
+        }
+
+        function renderWritePhase(data) {
+            if(data.answers?.[currentUser.uid]) {
+                document.getElementById('write-area').classList.add('hidden');
+                document.getElementById('write-waiting').classList.remove('hidden');
+                document.getElementById('write-waiting').style.display = 'flex';
+            }
+        }
+
+        window.submitFakeAnswer = async () => {
+            const ans = document.getElementById('input-fake-answer').value.trim();
+            if(!ans) return;
+            if(ans === localRoomState.questions[localRoomState.currentQuestionIndex].a) {
+                showToast("هذه هي الإجابة الصحيحة! اكتب خدعة.", "error"); return;
+            }
+            playSound('success');
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            await updateDoc(roomRef, { [`answers.${currentUser.uid}`]: ans });
+        };
+
+        function setupChoosePhase(data) {
+            showScreen('screen-choose');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('question-text-choose').textContent = q.q;
+            document.getElementById('round-number-choose').textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
+            
+            const options = [{ text: q.a, isCorrect: true }];
+            for(let id in data.answers) {
+                if(id !== currentUser.uid) options.push({ text: data.answers[id], isCorrect: false });
+            }
+            options.sort(() => 0.5 - Math.random());
+
+            const area = document.getElementById('choices-area');
+            area.innerHTML = '';
+            area.classList.remove('hidden');
+            document.getElementById('choose-waiting').classList.add('hidden');
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-4 rounded-xl bg-slate-800 border-2 border-slate-700 hover:border-brand-primary text-lg font-bold";
+                btn.textContent = opt.text;
+                btn.onclick = () => submitChoice(opt.text);
+                area.appendChild(btn);
+            });
+            startTimer(data.roundEndTime, 'timer-choose');
+        }
+
+        function renderChoosePhase(data) {
+            if(data.choices?.[currentUser.uid]) {
+                document.getElementById('choices-area').classList.add('hidden');
+                document.getElementById('choose-waiting').classList.remove('hidden');
+                document.getElementById('choose-waiting').style.display = 'flex';
+            }
+        }
+
+        window.submitChoice = async (txt) => {
+            playSound('success');
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            await updateDoc(roomRef, { [`choices.${currentUser.uid}`]: txt });
+        };
+
+        function setupResultsPhase(data, isHost) {
+            showScreen('screen-results');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('results-question').textContent = q.q;
+            document.getElementById('correct-answer-display').textContent = q.a;
+            
+            const myChoice = data.choices?.[currentUser.uid];
+            const details = document.getElementById('results-details');
+            details.innerHTML = '';
+
+            if(myChoice === q.a) {
+                details.innerHTML = `<div class="bg-brand-success/20 p-3 rounded-lg text-brand-success font-bold text-center mb-4">أحسنت! إجابة صحيحة (+1000)</div>`;
+            } else if(myChoice) {
+                details.innerHTML = `<div class="bg-red-500/20 p-3 rounded-lg text-red-400 font-bold text-center mb-4">لقد انخدعت!</div>`;
+            }
+
+            document.getElementById('host-next-round').classList.toggle('hidden', !isHost);
+            document.getElementById('host-next-round').style.display = isHost ? 'block' : 'none';
+        }
+
+        window.nextRound = async () => {
+            const data = localRoomState;
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            if(data.currentQuestionIndex + 1 >= data.totalRounds) {
+                await updateDoc(roomRef, { state: 'leaderboard' });
+            } else {
+                await updateDoc(roomRef, {
+                    state: 'writing',
+                    currentQuestionIndex: data.currentQuestionIndex + 1,
+                    answers: {}, choices: {},
+                    roundEndTime: Date.now() + 35000
+                });
+            }
+        };
+
+        function renderLeaderboard(data, isHost) {
+            showScreen('screen-leaderboard');
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = '';
+            const sorted = Object.values(data.players).sort((a,b) => b.score - a.score);
+            sorted.forEach((p, i) => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center p-4 rounded-xl bg-slate-800 border border-slate-700";
+                div.innerHTML = `<span class="font-bold text-lg">${i+1}. ${p.name}</span> <span class="text-brand-accent font-mono font-bold">${p.score}</span>`;
+                list.appendChild(div);
+            });
+            document.getElementById('host-play-again').classList.toggle('hidden', !isHost);
+        }
+
+        window.playAgain = async () => {
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            const newPlayers = {...localRoomState.players};
+            for(let id in newPlayers) newPlayers[id].score = 0;
+            const shuffled = [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 5);
+            await updateDoc(roomRef, {
+                state: 'waiting', players: newPlayers, questions: shuffled,
+                currentQuestionIndex: 0, answers: {}, choices: {}
+            });
+        };
+
+        window.leaveRoom = () => {
+            if(unsubscribeRoom) unsubscribeRoom();
+            currentRoomId = null;
+            showScreen('screen-login');
+        };
+
+        function startTimer(endTime, id) {
+            if(timerInterval) clearInterval(timerInterval);
+            const el = document.getElementById(id);
+            timerInterval = setInterval(() => {
+                const rem = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+                el.textContent = rem;
+                if(rem <= 0) clearInterval(timerInterval);
+            }, 1000);
+        }
+
+        async function checkHostTransitions(data) {
+            const pCount = Object.keys(data.players).length;
+            const now = Date.now();
+            if(data.state === 'writing') {
+                const aCount = Object.keys(data.answers || {}).length;
+                if(aCount === pCount || now >= data.roundEndTime) {
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+                    await updateDoc(roomRef, { state: 'choosing', roundEndTime: Date.now() + 25000 });
+                }
+            } else if(data.state === 'choosing') {
+                const cCount = Object.keys(data.choices || {}).length;
+                if(cCount === pCount || now >= data.roundEndTime) {
+                    calculateScores(data);
+                }
+            }
+        }
+
+        async function calculateScores(data) {
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            const newPlayers = JSON.parse(JSON.stringify(data.players));
+            const correct = data.questions[data.currentQuestionIndex].a;
+            for(let uid in data.choices) {
+                const choice = data.choices[uid];
+                if(choice === correct) newPlayers[uid].score += 1000;
+                else {
+                    for(let fUid in data.answers) {
+                        if(data.answers[fUid] === choice && fUid !== uid) {
+                            newPlayers[fUid].score += 1000;
+                        }
+                    }
+                }
+            }
+            await updateDoc(roomRef, { state: 'results', players: newPlayers, roundEndTime: 0 });
+        }
+
+        window.copyRoomCode = () => {
+            const el = document.createElement('textarea');
+            el.value = currentRoomId;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast("تم النسخ!");
+        };
+
+    </script>
+</body>
+</html>

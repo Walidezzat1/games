@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الخداع الذكي | Multiplayer Quiz</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#1e1b4b',
+                            primary: '#4f46e5',
+                            secondary: '#ec4899',
+                            accent: '#f59e0b',
+                            success: '#10b981'
+                        }
+                    },
+                    animation: {
+                        'bounce-slow': 'bounce 3s infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; color: white; overflow-x: hidden; }
+        .glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .btn-primary { background: linear-gradient(135deg, #4f46e5, #ec4899); transition: transform 0.2s; }
+        .btn-primary:hover { transform: scale(1.05); }
+        .btn-primary:active { transform: scale(0.95); }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+
+    <!-- Background Elements -->
+    <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-brand-primary rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-pulse"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-brand-secondary rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- UI Container -->
+    <div id="app-container" class="w-full max-w-2xl mx-auto flex flex-col items-center space-y-6 hidden">
+        
+        <!-- Screen 1: Login / Nickname -->
+        <div id="screen-login" class="w-full glass-panel rounded-2xl p-8 flex flex-col items-center space-y-6 text-center">
+            <div class="w-24 h-24 bg-brand-primary rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/50 mb-2">
+                <i data-lucide="brain-circuit" class="w-12 h-12 text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-secondary">الخداع الذكي</h1>
+                <p class="text-brand-accent font-bold mt-2 text-lg">من تصميم الموجه الفني للفيزياء أ/ وليد عزت</p>
+            </div>
+            
+            <p class="text-gray-300">أدخل اسماً مستعاراً للبدء في اللعب</p>
+            
+            <input type="text" id="input-nickname" placeholder="اسمك المستعار..." class="w-full max-w-xs px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-lg" maxlength="15">
+            
+            <div class="flex flex-col w-full max-w-xs space-y-3 pt-4">
+                <button onclick="createRoom()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> إنشاء غرفة جديدة
+                </button>
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-700"></div>
+                    <span class="flex-shrink-0 mx-4 text-slate-500 text-sm">أو</span>
+                    <div class="flex-grow border-t border-slate-700"></div>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="input-room-code" placeholder="كود الغرفة" class="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-brand-secondary text-center uppercase font-mono tracking-widest" maxlength="5">
+                    <button onclick="joinRoom()" class="bg-slate-700 hover:bg-slate-600 text-white px-6 rounded-xl font-bold transition-colors">
+                        انضمام
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: Lobby -->
+        <div id="screen-lobby" class="w-full glass-panel rounded-2xl p-6 hidden flex-col items-center">
+            <h2 class="text-2xl font-bold mb-2">غرفة الانتظار</h2>
+            <div class="bg-slate-800 px-6 py-3 rounded-xl border border-slate-700 flex items-center gap-4 mb-6">
+                <span class="text-gray-400">كود الغرفة:</span>
+                <span id="display-room-code" class="text-3xl font-mono font-bold text-brand-accent tracking-widest">----</span>
+                <button onclick="copyRoomCode()" class="text-slate-400 hover:text-white transition-colors" title="نسخ الكود">
+                    <i data-lucide="copy" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="w-full bg-slate-800/50 rounded-xl p-4 mb-6 min-h-[150px]">
+                <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-brand-primary"></i> اللاعبون المتصلون (<span id="player-count">0</span>)
+                </h3>
+                <div id="players-list" class="flex flex-wrap gap-3 max-h-48 overflow-y-auto p-2">
+                    <!-- Players will be added here dynamically -->
+                </div>
+            </div>
+
+            <div id="host-controls" class="w-full hidden flex-col items-center">
+                <button onclick="startGame()" class="btn-primary w-full max-w-xs py-3 rounded-xl font-bold text-lg shadow-lg shadow-brand-primary/30 flex items-center justify-center gap-2">
+                    <i data-lucide="play" class="w-5 h-5"></i> ابدأ اللعبة الآن
+                </button>
+                <p class="text-sm text-slate-400 mt-3 text-center">أنت مدير الغرفة. انتظر دخول جميع أصدقائك قبل البدء.</p>
+            </div>
+            <div id="guest-waiting" class="w-full flex flex-col items-center">
+                <div class="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p class="text-slate-400">في انتظار مدير الغرفة لبدء اللعبة...</p>
+            </div>
+        </div>
+
+        <!-- Screen 3: Game - Write Fake Answer -->
+        <div id="screen-write" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full flex justify-between items-center bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
+                <span class="font-bold text-brand-secondary">الجولة <span id="round-number-write">1</span></span>
+                <div class="flex items-center gap-2 font-mono text-xl text-brand-accent font-bold">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                    <span id="timer-write">30</span>
+                </div>
+            </div>
+
+            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
+                <span class="text-sm text-brand-primary font-bold mb-2 block" id="question-category">العلوم</span>
+                <h2 id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed mb-6">...</h2>
+                
+                <div id="write-area" class="space-y-4">
+                    <p class="text-slate-300 text-sm mb-2">اكتب إجابة خاطئة تبدو صحيحة لتخدع أصدقاءك!</p>
+                    <input type="text" id="input-fake-answer" placeholder="إجابتك المضللة هنا..." class="w-full px-4 py-4 rounded-xl bg-slate-800 border-2 border-slate-600 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-lg">
+                    <button onclick="submitFakeAnswer()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg">
+                        تأكيد الإجابة
+                    </button>
+                </div>
+                
+                <div id="write-waiting" class="hidden flex-col items-center py-6">
+                    <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-3"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">تم تسجيل إجابتك!</h3>
+                    <p class="text-slate-400">في انتظار باقي اللاعبين <span class="animate-pulse">...</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 4: Game - Choose Correct Answer -->
+        <div id="screen-choose" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full flex justify-between items-center bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700">
+                <span class="font-bold text-brand-secondary">الجولة <span id="round-number-choose">1</span></span>
+                <div class="flex items-center gap-2 font-mono text-xl text-brand-accent font-bold">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                    <span id="timer-choose">20</span>
+                </div>
+            </div>
+
+            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
+                <h2 id="question-text-choose" class="text-xl md:text-2xl font-bold leading-relaxed mb-6">...</h2>
+                
+                <div id="choices-area" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto p-2">
+                    <!-- Choice buttons generated here -->
+                </div>
+
+                <div id="choose-waiting" class="hidden flex-col items-center py-6 mt-4">
+                    <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-3"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">تم اختيار إجابتك!</h3>
+                    <p class="text-slate-400">في انتظار باقي اللاعبين <span class="animate-pulse">...</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 5: Results -->
+        <div id="screen-results" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
+                <h2 class="text-3xl font-bold text-white mb-2">نتائج الجولة</h2>
+                <p id="results-question" class="text-slate-300 mb-6 font-semibold">...</p>
+                
+                <div class="bg-brand-success/20 border border-brand-success/50 rounded-xl p-4 mb-8">
+                    <p class="text-sm text-brand-success mb-1">الإجابة الصحيحة هي:</p>
+                    <h3 id="correct-answer-display" class="text-2xl font-bold text-white">...</h3>
+                </div>
+
+                <div id="results-details" class="space-y-4 text-right max-h-[40vh] overflow-y-auto p-4 bg-slate-800/50 rounded-xl">
+                    <!-- Detailed results (who tricked who) -->
+                </div>
+
+                <div id="host-next-round" class="hidden mt-8">
+                    <button onclick="nextRound()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
+                        التالي <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 6: Leaderboard -->
+        <div id="screen-leaderboard" class="w-full hidden flex-col items-center space-y-6">
+            <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand-accent to-brand-secondary"></div>
+                
+                <i data-lucide="trophy" class="w-16 h-16 text-brand-accent mx-auto mb-4 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]"></i>
+                <h2 class="text-3xl font-bold text-white mb-6">الترتيب النهائي</h2>
+                
+                <div id="leaderboard-list" class="space-y-3 mb-8 max-h-[50vh] overflow-y-auto p-2">
+                    <!-- Leaderboard entries -->
+                </div>
+
+                <div class="flex justify-center gap-4">
+                    <button onclick="leaveRoom()" class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-colors">
+                        الخروج للرئيسية
+                    </button>
+                    <div id="host-play-again" class="hidden">
+                        <button onclick="playAgain()" class="btn-primary px-6 py-3 rounded-xl font-bold shadow-lg">
+                            لعب جولة جديدة
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Footer -->
+        <footer class="w-full text-center text-slate-500 text-xs py-4">
+            تصميم وإعداد: أ/ وليد عزت (موجه فني الفيزياء)
+        </footer>
+
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900/90 z-50 flex flex-col items-center justify-center">
+        <div class="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-xl font-bold text-white tracking-wider">جاري التحميل...</p>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // 1. Database of Questions (Expanded)
+        // ==========================================
+        const questionDatabase = [
+            { q: "ما هو أطول نهر في العالم؟", a: "نهر النيل", c: "جغرافيا" },
+            { q: "ما هو المعدن السائل في درجة حرارة الغرفة؟", a: "الزئبق", c: "علوم" },
+            { q: "من رسم لوحة الموناليزا؟", a: "ليوناردو دا فينشي", c: "فنون" },
+            { q: "ما هو الكوكب الملقب بالكوكب الأحمر؟", a: "المريخ", c: "علوم" },
+            { q: "في أي قارة تقع دولة البرازيل؟", a: "أمريكا الجنوبية", c: "جغرافيا" },
+            { q: "ما هي عاصمة اليابان؟", a: "طوكيو", c: "جغرافيا" },
+            { q: "من هو مخترع المصباح الكهربائي؟", a: "توماس إديسون", c: "تاريخ" },
+            { q: "ما هو العنصر الكيميائي الذي رمزه O؟", a: "الأكسجين", c: "علوم" },
+            { q: "ما هو الحيوان البري الأسرع في العالم؟", a: "الفهد", c: "علوم" },
+            { q: "كم عدد قارات العالم؟", a: "سبع قارات", c: "جغرافيا" },
+            { q: "ما هو أقرب كوكب للشمس؟", a: "عطارد", c: "علوم" },
+            { q: "في أي عام بدأت الحرب العالمية الثانية؟", a: "1939", c: "تاريخ" },
+            { q: "من هو مؤلف كتاب البخلاء؟", a: "الجاحظ", c: "أدب" },
+            { q: "ما هي العملة الرسمية في اليابان؟", a: "الين", c: "ثقافة عامة" },
+            { q: "ما هو الغاز الذي تمتصه النباتات؟", a: "ثاني أكسيد الكربون", c: "علوم" },
+            { q: "أين يقع تمثال الحرية؟", a: "نيويورك", c: "جغرافيا" },
+            { q: "كم عدد أسنان الإنسان البالغ؟", a: "32", c: "علوم" },
+            { q: "ما هي أكبر دولة في العالم من حيث المساحة؟", a: "روسيا", c: "جغرافيا" },
+            { q: "ما هو لون الزمرد؟", a: "أخضر", c: "ثقافة عامة" },
+            { q: "كم عدد اللاعبين في فريق كرة القدم؟", a: "11", c: "رياضة" },
+            { q: "ما هو الحيوان الملقب بسفينة الصحراء؟", a: "الجمل", c: "علوم" },
+            { q: "ما هي اللغة الأكثر تحدثاً في العالم كلغة أم؟", a: "الماندرين (الصينية)", c: "ثقافة عامة" },
+            { q: "من هو أول رائد فضاء في العالم؟", a: "يوري غاغارين", c: "تاريخ" },
+            { q: "ما هو أصغر كوكب في المجموعة الشمسية؟", a: "عطارد", c: "علوم" },
+            { q: "ما هي عاصمة إيطاليا؟", a: "روما", c: "جغرافيا" },
+            { q: "من بنى أهرامات الجيزة؟", a: "الفراعنة", c: "تاريخ" },
+            { q: "كم عدد أيام السنة الكبيسة؟", a: "366", c: "ثقافة عامة" },
+            { q: "ما هو صوت الأسد؟", a: "زئير", c: "ثقافة عامة" },
+            { q: "ما هي المادة التي تشكل 70% من جسم الإنسان؟", a: "الماء", c: "علوم" },
+            { q: "أين يقع برج إيفل؟", a: "باريس", c: "جغرافيا" },
+            { q: "ما هو الطائر الذي لا يطير ويعيش في القارة القطبية؟", a: "البطريق", c: "علوم" },
+            { q: "ما هي أكبر محيطات العالم؟", a: "المحيط الهادئ", c: "جغرافيا" },
+            { q: "من هو مكتشف الجاذبية الأرضية؟", a: "إسحاق نيوتن", c: "تاريخ" },
+            { q: "ما هو الجهاز الذي يقيس الزلازل؟", a: "السيسموغراف", c: "علوم" },
+            { q: "ما هي عاصمة إسبانيا؟", a: "مدريد", c: "جغرافيا" },
+            { q: "كم عدد حواس الإنسان الأساسية؟", a: "خمس", c: "علوم" },
+            { q: "ما هو اللون الذي ينتج عن خلط الأحمر والأصفر؟", a: "البرتقالي", c: "ثقافة عامة" },
+            { q: "ما هو أعلى جبل في العالم؟", a: "إيفرست", c: "جغرافيا" },
+            { q: "ما هو الكوكب الذي يمتلك حلقات واضحة حوله؟", a: "زحل", c: "علوم" },
+            { q: "ما هي القارة الملقبة بالقارة السمراء؟", a: "أفريقيا", c: "جغرافيا" },
+            { q: "من هو مؤسس شركة مايكروسوفت؟", a: "بيل غيتس", c: "تكنولوجيا" },
+            { q: "ما هي الشبكة الاجتماعية التي تعتمد على التغريدات القصيرة؟", a: "تويتر (X)", c: "تكنولوجيا" },
+            { q: "ما هو أسرع طائر في العالم؟", a: "الشاهين", c: "علوم" },
+            { q: "أين تقع الكعبة المشرفة؟", a: "مكة المكرمة", c: "جغرافيا" },
+            { q: "كم عدد الألوان في قوس قزح؟", a: "سبعة", c: "علوم" },
+            { q: "ما هو أشهر محرك بحث على الإنترنت؟", a: "جوجل", c: "تكنولوجيا" },
+            { q: "ما هي الدولة التي قدمت تمثال الحرية لأمريكا؟", a: "فرنسا", c: "تاريخ" },
+            { q: "ما هو أكبر حيوان على وجه الأرض؟", a: "الحوت الأزرق", c: "علوم" },
+            { q: "ما هو المكون الرئيسي للزجاج؟", a: "الرمل (السيليكا)", c: "علوم" },
+            { q: "في أي عام تم إطلاق أول هاتف آيفون؟", a: "2007", c: "تكنولوجيا" },
+            
+            // --- الرياضة المحلية (الكويت والخليج) ---
+            { q: "كم عدد مرات فوز منتخب الكويت ببطولة كأس الخليج العربي؟", a: "10 مرات", c: "رياضة محلية" },
+            { q: "في أي عام فاز منتخب الكويت بكأس آسيا لكرة القدم؟", a: "1980", c: "رياضة محلية" },
+            { q: "من هو الهداف التاريخي لبطولات كأس الخليج العربي؟", a: "جاسم يعقوب", c: "رياضة محلية" },
+            { q: "في أي عام شارك منتخب الكويت في نهائيات كأس العالم لكرة القدم؟", a: "1982", c: "رياضة محلية" },
+            { q: "ما هو النادي الكويتي الملقب بـ 'الزعيم'؟", a: "نادي العربي", c: "رياضة محلية" },
+            { q: "ما هو النادي الكويتي الملقب بـ 'الملكي'؟", a: "نادي القادسية", c: "رياضة محلية" },
+            { q: "ما هو النادي الكويتي الملقب بـ 'العميد'؟", a: "نادي الكويت", c: "رياضة محلية" },
+            { q: "من هو الرامي الكويتي الفائز بذهبية أولمبياد ريو 2016؟", a: "فهيد الديحاني", c: "رياضة محلية" },
+            { q: "من هو اللاعب الكويتي الملقب بـ 'المرعب'؟", a: "جاسم يعقوب", c: "رياضة محلية" },
+            { q: "من هو اللاعب الكويتي الملقب بـ 'الفارس الأسمر'؟", a: "فتحي كميل", c: "رياضة محلية" },
+            { q: "أين أقيمت بطولة خليجي 25 التي فاز بها العراق؟", a: "البصرة", c: "رياضة خليجية" },
+            { q: "النادي السعودي الملقب بـ 'الزعيم' هو؟", a: "الهلال", c: "رياضة خليجية" },
+            { q: "النادي السعودي الملقب بـ 'العالمي' هو؟", a: "النصر", c: "رياضة خليجية" },
+            { q: "النادي السعودي الملقب بـ 'العميد' هو؟", a: "الاتحاد", c: "رياضة خليجية" },
+            { q: "من هو الهداف التاريخي للمنتخب السعودي؟", a: "ماجد عبد الله", c: "رياضة خليجية" },
+            
+            // --- الرياضة العربية ---
+            { q: "أكثر نادي مصري وأفريقي تتويجاً بدوري أبطال أفريقيا هو؟", a: "الأهلي المصري", c: "رياضة عربية" },
+            { q: "ما هو النادي المصري الملقب بـ 'مدرسة الفن والهندسة'؟", a: "الزمالك", c: "رياضة عربية" },
+            { q: "المنتخب العربي الوحيد الذي وصل لنصف نهائي كأس العالم (2022) هو؟", a: "المغرب", c: "رياضة عربية" },
+            { q: "أول دولة عربية تستضيف كأس العالم هي؟", a: "قطر", c: "رياضة عربية" },
+            { q: "من هو اللاعب المصري الملقب بـ 'فخر العرب'؟", a: "محمد صلاح", c: "رياضة عربية" },
+            { q: "أي دولة عربية فازت بكأس آسيا لكرة القدم 2023 (التي أقيمت في 2024)؟", a: "قطر", c: "رياضة عربية" },
+            { q: "النادي المغربي الملقب بـ 'وداد الأمة' هو؟", a: "الوداد الرياضي", c: "رياضة عربية" },
+            { q: "العداء المغربي الأسطوري حامل الرقم القياسي السابق في 1500 متر؟", a: "هشام الكروج", c: "رياضة عربية" },
+
+            // --- الرياضة العالمية ---
+            { q: "المنتخب الأكثر تتويجاً بكأس العالم لكرة القدم (5 مرات) هو؟", a: "البرازيل", c: "رياضة عالمية" },
+            { q: "كم عدد بطولات كأس العالم التي فازت بها الأرجنتين حتى 2022؟", a: "3 بطولات", c: "رياضة عالمية" },
+            { q: "من هو الهداف التاريخي لكأس العالم لكرة القدم (16 هدف)؟", a: "ميروسلاف كلوزه", c: "رياضة عالمية" },
+            { q: "النادي الأكثر تتويجاً بدوري أبطال أوروبا لكرة القدم هو؟", a: "ريال مدريد", c: "رياضة عالمية" },
+            { q: "في أي مدينة أقيمت دورة الألعاب الأولمبية الصيفية 2024؟", a: "باريس", c: "رياضة عالمية" },
+            { q: "من هو اللاعب الأكثر فوزاً بجائزة الكرة الذهبية (بالون دور)؟", a: "ليونيل ميسي", c: "رياضة عالمية" },
+            { q: "في أي رياضة يشتهر الأسطورة 'مايكل جوردان'؟", a: "كرة السلة", c: "رياضة عالمية" },
+            { q: "في أي رياضة يشتهر الأسطورة 'روجيه فيدرر'؟", a: "التنس", c: "رياضة عالمية" },
+            { q: "من هو الملاكم الأسطوري الملقب بـ 'الأعظم' (The Greatest)؟", a: "محمد علي كلاي", c: "رياضة عالمية" },
+            { q: "كم عدد اللاعبين الأساسيين في فريق كرة السلة داخل الملعب؟", a: "5 لاعبين", c: "رياضة عالمية" },
+            { q: "ما هي مدة شوط المباراة الواحد في كرة القدم؟", a: "45 دقيقة", c: "رياضة عالمية" },
+            { q: "أي دولة ابتكرت رياضة الجودو؟", a: "اليابان", c: "رياضة عالمية" },
+            { q: "من هو أسرع رجل في العالم وحامل الرقم القياسي في سباق 100 متر؟", a: "يوسين بولت", c: "رياضة عالمية" },
+            { q: "في أي عام أقيمت أول بطولة لكأس العالم لكرة القدم؟", a: "1930", c: "رياضة عالمية" },
+            { q: "أين يقع مقر الاتحاد الدولي لكرة القدم (الفيفا)؟", a: "زيورخ (سويسرا)", c: "رياضة عالمية" },
+            { q: "ما هي الرياضة التي تستخدم فيها 'كرة الريشة'؟", a: "تنس الريشة (البادمنتون)", c: "رياضة عالمية" },
+            { q: "من فاز بكأس العالم لكرة القدم عام 2018؟", a: "فرنسا", c: "رياضة عالمية" },
+            { q: "كم يبلغ طول سباق الماراثون تقريباً؟", a: "42 كيلومتر", c: "رياضة عالمية" },
+            { q: "ما هو النادي الإنجليزي الملقب بـ 'الشياطين الحمر'؟", a: "مانشستر يونايتد", c: "رياضة عالمية" },
+            { q: "ما هو النادي الإنجليزي الملقب بـ 'الجانرز' (المدفعجية)؟", a: "أرسنال", c: "رياضة عالمية" },
+            { q: "ما هو النادي الإسباني الذي يلعب مبارياته في ملعب 'كامب نو'؟", a: "برشلونة", c: "رياضة عالمية" },
+            { q: "ما هي الدولة التي فازت بكأس العالم لكرة القدم 2014؟", a: "ألمانيا", c: "رياضة عالمية" },
+            { q: "من هو اللاعب الذي سجل هدف 'يد الله' الشهير في كأس العالم 1986؟", a: "دييغو مارادونا", c: "رياضة عالمية" },
+            { q: "ما هي بطولة التنس الكبرى (جراند سلام) التي تقام على الملاعب العشبية؟", a: "ويمبلدون", c: "رياضة عالمية" },
+            { q: "ما هي بطولة التنس الكبرى (جراند سلام) التي تقام على الملاعب الترابية؟", a: "رولان غاروس", c: "رياضة عالمية" },
+            { q: "لاعب تنس إسباني ملقب بـ 'ملك الملاعب الترابية'؟", a: "رافاييل نادال", c: "رياضة عالمية" },
+            { q: "كم عدد اللاعبين الأساسيين في فريق الكرة الطائرة؟", a: "6 لاعبين", c: "رياضة عالمية" },
+            { q: "رياضة تعتمد على رمي كرات حديدية ثقيلة لأبعد مسافة ممكنة؟", a: "دفع الجلة", c: "رياضة عالمية" },
+            { q: "ما هي الدولة الفائزة بأول نسخة من كأس العالم لكرة القدم؟", a: "الأوروغواي", c: "رياضة عالمية" },
+            { q: "من هو الهداف التاريخي لدوري أبطال أوروبا؟", a: "كريستيانو رونالدو", c: "رياضة عالمية" },
+            { q: "في أي مدينة يقع المقر الرئيسي للجنة الأولمبية الدولية؟", a: "لوزان (سويسرا)", c: "رياضة عالمية" },
+            { q: "ما هو الحزام الذي يدل على أعلى مستوى في رياضة الكاراتيه أو الجودو؟", a: "الحزام الأسود", c: "رياضة عالمية" },
+            { q: "ما هي الرياضة التي تُعرف بـ 'لعبة الملوك' وتلعب على ظهور الخيل؟", a: "البولو", c: "رياضة عالمية" },
+            { q: "بطولة 'السوبر بول' (Super Bowl) هي الحدث الرياضي الأهم في أي رياضة؟", a: "كرة القدم الأمريكية", c: "رياضة عالمية" },
+            { q: "أين أقيمت أول دورة ألعاب أولمبية حديثة عام 1896؟", a: "أثينا (اليونان)", c: "رياضة عالمية" },
+            { q: "رياضة قتالية كورية تعني 'طريق القدم والقبضة'؟", a: "التايكوندو", c: "رياضة عالمية" },
+            { q: "كم تستغرق الجولة الواحدة في الملاكمة الاحترافية للرجال؟", a: "3 دقائق", c: "رياضة عالمية" },
+            { q: "أي دولة تعتبر منشأ رياضة تنس الطاولة؟", a: "إنجلترا", c: "رياضة عالمية" },
+            { q: "من هو سائق الفورمولا 1 البريطاني الحاصل على 7 بطولات عالمية؟", a: "لويس هاميلتون", c: "رياضة عالمية" }
+        ];
+
+        // ==========================================
+        // 2. Firebase & Setup
+        // ==========================================
+        let firebaseConfig = {};
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        } catch(e) { console.error("Firebase config missing"); }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-app';
+        
+        // Game State Variables
+        let currentUser = null;
+        let currentRoomId = null;
+        let unsubscribeRoom = null;
+        let myName = localStorage.getItem('nickname') || '';
+        let timerInterval = null;
+        let audioCtx = null;
+
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Audio System (Simple Beeps)
+        function initAudio() {
+            if(!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        function playSound(type) {
+            try {
+                if(!audioCtx) return;
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                const now = audioCtx.currentTime;
+                if(type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if(type === 'success') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.setValueAtTime(600, now + 0.1);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if(type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                    osc.start(now); osc.stop(now + 0.2);
+                }
+            } catch(e) {}
+        }
+
+        // DOM Elements setup
+        if(myName) document.getElementById('input-nickname').value = myName;
+
+        // ==========================================
+        // 3. Authentication (RULE 3)
+        // ==========================================
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch(e) {
+                showToast("خطأ في الاتصال بالخادم", "error");
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                showScreen('screen-login');
+            }
+        });
+
+        initAuth();
+
+        // ==========================================
+        // 4. Game Logic & Functions
+        // ==========================================
+
+        function showScreen(screenId) {
+            ['screen-login', 'screen-lobby', 'screen-write', 'screen-choose', 'screen-results', 'screen-leaderboard'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+            document.getElementById(screenId).classList.add('animate-[slideIn_0.3s_ease-out]');
+        }
+
+        function showToast(msg, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const color = type === 'success' ? 'bg-brand-success' : (type === 'error' ? 'bg-red-500' : 'bg-brand-primary');
+            toast.className = `toast-enter ${color} text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm pointer-events-auto`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(100%)';
+                toast.style.transition = 'all 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Generate random 5-char code
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let result = '';
+            for (let i = 0; i < 5; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+            return result;
+        }
+
+        function validateName() {
+            const name = document.getElementById('input-nickname').value.trim();
+            if(!name) { showToast("رجاءً أدخل اسمك المستعار", "error"); return false; }
+            myName = name;
+            localStorage.setItem('nickname', name);
+            initAudio(); // Initialize audio on first user interaction
+            return true;
+        }
+
+        window.createRoom = async () => {
+            if(!validateName()) return;
+            if(!currentUser) return;
+            playSound('click');
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            let code = '';
+            let isUnique = false;
+            let attempts = 0;
+            let roomRef;
+
+            // التأكد من أن الكود العشوائي غير مستخدم مسبقاً (لدعم عدد لا محدود من الغرف)
+            while (!isUnique && attempts < 10) {
+                code = generateRoomCode();
+                roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
+                const docSnap = await getDoc(roomRef);
+                if (!docSnap.exists()) {
+                    isUnique = true;
+                }
+                attempts++;
+            }
+
+            if (!isUnique) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                showToast("حدث خطأ أثناء توليد الكود، جرب مرة أخرى", "error");
+                return;
+            }
+
+            currentRoomId = code;
+
+            // Select 5 random questions
+            const shuffledQ = [...questionDatabase].sort(() => 0.5 - Math.random());
+            const selectedQuestions = shuffledQ.slice(0, 5);
+
+            try {
+                await setDoc(roomRef, {
+                    host: currentUser.uid,
+                    state: 'waiting',
+                    players: {
+                        [currentUser.uid]: { name: myName, score: 0 }
+                    },
+                    questions: selectedQuestions,
+                    currentQuestionIndex: 0,
+                    answers: {},
+                    choices: {},
+                    roundEndTime: 0,
+                    totalRounds: 5
+                });
+                listenToRoom(code);
+            } catch(e) {
+                console.error(e);
+                document.getElementById('loading-overlay').classList.add('hidden');
+                showToast("فشل في إنشاء الغرفة", "error");
+            }
+        };
+
+        window.joinRoom = async () => {
+            if(!validateName()) return;
+            const codeInput = document.getElementById('input-room-code').value.trim().toUpperCase();
+            if(codeInput.length !== 5) { showToast("كود الغرفة يجب أن يتكون من 5 أحرف", "error"); return; }
+            if(!currentUser) return;
+            playSound('click');
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            currentRoomId = codeInput;
+            
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            try {
+                const docSnap = await getDoc(roomRef);
+                if(docSnap.exists()) {
+                    const data = docSnap.data();
+                    if(data.state !== 'waiting') {
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                        showToast("اللعبة بدأت بالفعل في هذه الغرفة", "error");
+                        return;
+                    }
+                    // Add self to players
+                    await updateDoc(roomRef, {
+                        [`players.${currentUser.uid}`]: { name: myName, score: 0 }
+                    });
+                    listenToRoom(currentRoomId);
+                } else {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    showToast("الغرفة غير موجودة", "error");
+                }
+            } catch(e) {
+                console.error(e);
+                document.getElementById('loading-overlay').classList.add('hidden');
+                showToast("حدث خطأ أثناء الانضمام", "error");
+            }
+        };
+
+        window.copyRoomCode = () => {
+            if(!currentRoomId) return;
+            // Fallback for copy since navigator.clipboard might fail in iframe
+            const el = document.createElement('textarea');
+            el.value = currentRoomId;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast("تم نسخ كود الغرفة");
+            playSound('click');
+        };
+
+        // ==========================================
+        // 5. Game Synchronization (Firestore Listeners)
+        // ==========================================
+        
+        let localRoomState = {};
+
+        function listenToRoom(roomId) {
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+            
+            if(unsubscribeRoom) unsubscribeRoom();
+            
+            unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                if(!docSnap.exists()) {
+                    handleRoomClosed();
+                    return;
+                }
+                
+                const data = docSnap.data();
+
+                // التحقق مما إذا تم طرد اللاعب الحالي من الغرفة
+                if (data.players && !data.players[currentUser.uid]) {
+                    handleKicked();
+                    return;
+                }
+
+                const prevState = localRoomState.state;
+                localRoomState = data;
+                
+                updateUI(data, prevState);
+            }, (error) => {
+                console.error("Listen error:", error);
+                showToast("فقدت الاتصال بالغرفة", "error");
+            });
+        }
+
+        function handleRoomClosed() {
+            if(unsubscribeRoom) unsubscribeRoom();
+            currentRoomId = null;
+            showScreen('screen-login');
+            showToast("تم إغلاق الغرفة", "error");
+        }
+
+        function handleKicked() {
+            if(unsubscribeRoom) unsubscribeRoom();
+            currentRoomId = null;
+            showScreen('screen-login');
+            showToast("لقد تم طردك من الغرفة", "error");
+        }
+
+        // ==========================================
+        // 6. State Machine & UI Updater
+        // ==========================================
+
+        function updateUI(data, prevState) {
+            const isHost = data.host === currentUser.uid;
+
+            // Host powers loop (Checks for auto-transitions)
+            if(isHost) checkHostTransitions(data);
+
+            switch(data.state) {
+                case 'waiting':
+                    renderLobby(data, isHost);
+                    break;
+                case 'writing':
+                    if(prevState !== 'writing') setupWritePhase(data);
+                    renderWritePhase(data);
+                    break;
+                case 'choosing':
+                    if(prevState !== 'choosing') setupChoosePhase(data);
+                    renderChoosePhase(data);
+                    break;
+                case 'results':
+                    if(prevState !== 'results') setupResultsPhase(data, isHost);
+                    break;
+                case 'leaderboard':
+                    renderLeaderboard(data, isHost);
+                    break;
+            }
+        }
+
+        // --- LOBBY ---
+        function renderLobby(data, isHost) {
+            showScreen('screen-lobby');
+            document.getElementById('display-room-code').textContent = currentRoomId;
+            
+            const playersList = document.getElementById('players-list');
+            playersList.innerHTML = '';
+            let count = 0;
+            
+            for(let uid in (data.players || {})) {
+                count++;
+                const p = data.players[uid];
+                const isMe = uid === currentUser.uid;
+                const isPlayerHost = uid === data.host;
+                
+                const div = document.createElement('div');
+                div.className = `px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${isMe ? 'bg-brand-primary text-white' : 'bg-slate-700 text-slate-200'}`;
+                
+                let innerHTML = `<i data-lucide="user" class="w-4 h-4"></i> ${p.name}`;
+                
+                if (isPlayerHost) {
+                    innerHTML += ` <i data-lucide="crown" class="w-4 h-4 text-brand-accent ml-1"></i>`;
+                }
+                
+                // إضافة زر الطرد لمدير الغرفة (لا يمكنه طرد نفسه)
+                if (isHost && !isMe) {
+                    innerHTML += ` <button onclick="kickPlayer('${uid}')" class="mr-2 text-red-400 hover:text-red-600 transition-colors" title="طرد اللاعب"><i data-lucide="x-circle" class="w-5 h-5"></i></button>`;
+                }
+
+                div.innerHTML = innerHTML;
+                playersList.appendChild(div);
+            }
+            document.getElementById('player-count').textContent = count;
+            lucide.createIcons();
+
+            if(isHost) {
+                document.getElementById('host-controls').classList.remove('hidden');
+                document.getElementById('guest-waiting').classList.add('hidden');
+            } else {
+                document.getElementById('host-controls').classList.add('hidden');
+                document.getElementById('guest-waiting').classList.remove('hidden');
+            }
+        }
+
+        window.startGame = async () => {
+            playSound('success');
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            await updateDoc(roomRef, {
+                state: 'writing',
+                roundEndTime: Date.now() + 30000 // 30 seconds
+            });
+        };
+
+        // --- WRITE PHASE ---
+        function setupWritePhase(data) {
+            showScreen('screen-write');
+            playSound('click');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('question-category').textContent = q.c;
+            document.getElementById('question-text').textContent = q.q;
+            document.getElementById('round-number-write').textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
+            
+            document.getElementById('input-fake-answer').value = '';
+            document.getElementById('write-area').classList.remove('hidden');
+            document.getElementById('write-waiting').classList.add('hidden');
+            document.getElementById('input-fake-answer').focus();
+
+            startTimer(data.roundEndTime, 'timer-write');
+        }
+
+        function renderWritePhase(data) {
+            if(data.answers && data.answers[currentUser.uid]) {
+                document.getElementById('write-area').classList.add('hidden');
+                document.getElementById('write-waiting').classList.remove('hidden');
+                document.getElementById('write-waiting').style.display = 'flex';
+            }
+        }
+
+        window.submitFakeAnswer = async () => {
+            const ans = document.getElementById('input-fake-answer').value.trim();
+            if(!ans) { showToast("اكتب إجابة أولاً!", "error"); return; }
+            if(ans.length > 40) { showToast("الإجابة طويلة جداً", "error"); return; }
+            playSound('success');
+
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            try {
+                // Minor trick: if user types the EXACT actual answer, we append a zero-width space
+                // so the system treats it as a fake answer, but visually it looks the same.
+                // Or just reject it to be fair. Let's reject it to be fair!
+                const actual = localRoomState.questions[localRoomState.currentQuestionIndex].a;
+                if(ans === actual) {
+                    showToast("هذه هي الإجابة الصحيحة فعلاً! اكتب إجابة خاطئة لخداعهم.", "error");
+                    return;
+                }
+
+                await updateDoc(roomRef, {
+                    [`answers.${currentUser.uid}`]: ans
+                });
+            } catch(e) { console.error(e); }
+        };
+
+        // --- CHOOSE PHASE ---
+        function setupChoosePhase(data) {
+            showScreen('screen-choose');
+            playSound('click');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('question-text-choose').textContent = q.q;
+            document.getElementById('round-number-choose').textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
+            
+            // Gather all answers
+            const allOptions = [ { text: q.a, isCorrect: true, author: 'system' } ];
+            for(let uid in (data.answers || {})) {
+                // Exclude own answer so they can't click it
+                if(uid !== currentUser.uid) {
+                    allOptions.push({ text: data.answers[uid], isCorrect: false, author: uid });
+                }
+            }
+            
+            // Shuffle
+            allOptions.sort(() => 0.5 - Math.random());
+
+            const choicesArea = document.getElementById('choices-area');
+            choicesArea.innerHTML = '';
+            choicesArea.classList.remove('hidden');
+            document.getElementById('choose-waiting').classList.add('hidden');
+
+            allOptions.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-4 rounded-xl bg-slate-800 border-2 border-slate-700 hover:border-brand-primary hover:bg-slate-700 transition-all text-lg font-bold text-white shadow-md";
+                btn.textContent = opt.text;
+                btn.onclick = () => submitChoice(opt.text);
+                choicesArea.appendChild(btn);
+            });
+
+            startTimer(data.roundEndTime, 'timer-choose');
+        }
+
+        function renderChoosePhase(data) {
+            if(data.choices && data.choices[currentUser.uid]) {
+                document.getElementById('choices-area').classList.add('hidden');
+                document.getElementById('choose-waiting').classList.remove('hidden');
+                document.getElementById('choose-waiting').style.display = 'flex';
+            }
+        }
+
+        window.submitChoice = async (chosenText) => {
+            playSound('success');
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            try {
+                await updateDoc(roomRef, {
+                    [`choices.${currentUser.uid}`]: chosenText
+                });
+            } catch(e) { console.error(e); }
+        };
+
+        // --- RESULTS PHASE ---
+        function setupResultsPhase(data, isHost) {
+            showScreen('screen-results');
+            const q = data.questions[data.currentQuestionIndex];
+            document.getElementById('results-question').textContent = q.q;
+            document.getElementById('correct-answer-display').textContent = q.a;
+            
+            const detailsDiv = document.getElementById('results-details');
+            detailsDiv.innerHTML = '';
+
+            // Calculate local visual summary (Scores were already updated by Host)
+            let myResultHtml = '';
+            let myChoice = data.choices ? data.choices[currentUser.uid] : null;
+            
+            if(myChoice === q.a) {
+                playSound('success');
+                myResultHtml = `<div class="bg-brand-success/20 p-3 rounded-lg border border-brand-success text-brand-success font-bold text-center mb-4">أحسنت! إجابتك صحيحة (+1000)</div>`;
+            } else if (myChoice) {
+                playSound('error');
+                // Find who tricked me
+                let tricksterName = "الزمن (لم تختر)";
+                for(let uid in (data.answers || {})) {
+                    if(data.answers[uid] === myChoice) tricksterName = data.players[uid]?.name || "مجهول";
+                }
+                myResultHtml = `<div class="bg-red-500/20 p-3 rounded-lg border border-red-500 text-red-400 font-bold text-center mb-4">لقد خدعك ${tricksterName}!</div>`;
+            } else {
+                myResultHtml = `<div class="bg-slate-700/50 p-3 rounded-lg text-slate-400 font-bold text-center mb-4">انتهى الوقت ولم تختر إجابة!</div>`;
+            }
+
+            // Who tricked who (global summary)
+            let tricksSummary = '<h4 class="font-bold text-slate-300 mb-2 border-b border-slate-700 pb-2">ملخص الخداع:</h4>';
+            let tricksFound = false;
+
+            for(let chooserUid in (data.choices || {})) {
+                const choice = data.choices[chooserUid];
+                if(choice !== q.a) {
+                    for(let fakerUid in (data.answers || {})) {
+                        if(data.answers[fakerUid] === choice && fakerUid !== chooserUid) {
+                            tricksFound = true;
+                            const fakerName = data.players[fakerUid] ? data.players[fakerUid].name : 'مجهول';
+                            const chooserName = data.players[chooserUid] ? data.players[chooserUid].name : 'مجهول';
+                            tricksSummary += `<p class="text-sm text-slate-400 mb-1"><span class="text-brand-accent font-bold">${fakerName}</span> خدع <span class="text-slate-200">${chooserName}</span> (+1000)</p>`;
+                        }
+                    }
+                }
+            }
+
+            if(!tricksFound) tricksSummary += '<p class="text-sm text-slate-500">لم ينخدع أحد بإجابات الآخرين هذه الجولة!</p>';
+
+            detailsDiv.innerHTML = myResultHtml + tricksSummary;
+
+            if(isHost) {
+                document.getElementById('host-next-round').classList.remove('hidden');
+                document.getElementById('host-next-round').style.display = 'block';
+            } else {
+                document.getElementById('host-next-round').style.display = 'none';
+            }
+        }
+
+        window.nextRound = async () => {
+            playSound('click');
+            const data = localRoomState;
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            
+            if (data.currentQuestionIndex + 1 >= data.totalRounds) {
+                // Game Over -> Leaderboard
+                await updateDoc(roomRef, { state: 'leaderboard' });
+            } else {
+                // Next Round
+                await updateDoc(roomRef, {
+                    state: 'writing',
+                    currentQuestionIndex: data.currentQuestionIndex + 1,
+                    answers: {},
+                    choices: {},
+                    roundEndTime: Date.now() + 30000
+                });
+            }
+        };
+
+        // --- LEADERBOARD PHASE ---
+        function renderLeaderboard(data, isHost) {
+            showScreen('screen-leaderboard');
+            playSound('success'); // Applause sound representation
+            
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = '';
+
+            // Sort players by score
+            const playersArr = Object.values(data.players || {}).sort((a,b) => b.score - a.score);
+
+            playersArr.forEach((p, index) => {
+                const div = document.createElement('div');
+                let medal = '';
+                if(index === 0) medal = '🥇';
+                else if(index === 1) medal = '🥈';
+                else if(index === 2) medal = '🥉';
+                else medal = `<span class="text-slate-500 font-mono w-6 inline-block text-center">${index+1}</span>`;
+
+                const isMe = p.name === myName;
+                div.className = `flex justify-between items-center p-4 rounded-xl ${isMe ? 'bg-brand-primary/20 border border-brand-primary/50' : 'bg-slate-800 border border-slate-700'}`;
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-3 text-lg font-bold">
+                        <span class="text-2xl">${medal}</span>
+                        <span class="${isMe ? 'text-white' : 'text-slate-300'}">${p.name}</span>
+                    </div>
+                    <div class="font-mono text-xl font-bold text-brand-accent">
+                        ${p.score} <span class="text-xs text-slate-400">نقطة</span>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+            if(isHost) {
+                document.getElementById('host-play-again').classList.remove('hidden');
+            } else {
+                document.getElementById('host-play-again').classList.add('hidden');
+            }
+        }
+
+        window.playAgain = async () => {
+            playSound('click');
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            
+            // Reset scores, select new questions
+            const newPlayers = {...(localRoomState.players || {})};
+            for(let uid in newPlayers) newPlayers[uid].score = 0;
+            
+            const shuffledQ = [...questionDatabase].sort(() => 0.5 - Math.random());
+            const selectedQuestions = shuffledQ.slice(0, 5);
+
+            await updateDoc(roomRef, {
+                state: 'waiting',
+                players: newPlayers,
+                questions: selectedQuestions,
+                currentQuestionIndex: 0,
+                answers: {},
+                choices: {}
+            });
+        };
+
+        window.leaveRoom = () => {
+            playSound('click');
+            if(unsubscribeRoom) unsubscribeRoom();
+            currentRoomId = null;
+            showScreen('screen-login');
+        };
+
+        window.kickPlayer = async (uidToKick) => {
+            playSound('click');
+            if(!currentRoomId || !localRoomState || localRoomState.host !== currentUser.uid) return;
+            
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            try {
+                // إزالة اللاعب من قائمة اللاعبين وإجاباته إذا وجدت
+                const newPlayers = { ...localRoomState.players };
+                delete newPlayers[uidToKick];
+                
+                const newAnswers = { ...(localRoomState.answers || {}) };
+                delete newAnswers[uidToKick];
+                
+                const newChoices = { ...(localRoomState.choices || {}) };
+                delete newChoices[uidToKick];
+
+                await updateDoc(roomRef, {
+                    players: newPlayers,
+                    answers: newAnswers,
+                    choices: newChoices
+                });
+                
+                showToast("تم طرد اللاعب بنجاح", "success");
+            } catch (e) {
+                console.error(e);
+                showToast("حدث خطأ أثناء طرد اللاعب", "error");
+            }
+        };
+
+        // ==========================================
+        // 7. Host Automation & Timers
+        // ==========================================
+
+        function checkHostTransitions(data) {
+            if (!data || !data.players) return; // الحماية ضد الأخطاء
+
+            const numPlayers = Object.keys(data.players || {}).length;
+            const now = Date.now();
+
+            if (data.state === 'writing') {
+                const numAnswers = Object.keys(data.answers || {}).length;
+                if (numAnswers === numPlayers || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
+                    // Everyone answered OR time's up. Move to choosing.
+                    transitionToChoosing(data);
+                }
+            }
+            else if (data.state === 'choosing') {
+                const numChoices = Object.keys(data.choices || {}).length;
+                if (numChoices === numPlayers || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
+                    // Everyone chose OR time's up. Move to results.
+                    transitionToResults(data);
+                }
+            }
+        }
+
+        async function transitionToChoosing(data) {
+            // Prevent double calls
+            if(data.isTransitioning) return;
+            data.isTransitioning = true;
+            
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            
+            // If someone didn't answer, auto-fill a fake answer for them to prevent game breakage
+            const newAnswers = {...(data.answers || {})};
+            for(let uid in (data.players || {})) {
+                if(!newAnswers[uid]) newAnswers[uid] = "إجابة عشوائية " + Math.floor(Math.random()*100);
+            }
+
+            await updateDoc(roomRef, {
+                state: 'choosing',
+                answers: newAnswers,
+                roundEndTime: Date.now() + 20000 // 20 seconds
+            });
+        }
+
+        async function transitionToResults(data) {
+             // Prevent double calls
+             if(data.isTransitioning) return;
+             data.isTransitioning = true;
+
+             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+             
+             // CALCULATE SCORES HERE (Only host does this once)
+             let newPlayers = JSON.parse(JSON.stringify(data.players || {})); // deep copy
+             const correctAns = data.questions[data.currentQuestionIndex].a;
+
+             for(let uid in (data.choices || {})) {
+                 const choice = data.choices[uid];
+                 if(choice === correctAns) {
+                     newPlayers[uid].score += 1000;
+                 } else {
+                     // Find who wrote this fake answer
+                     for(let fakeUid in (data.answers || {})) {
+                         if(data.answers[fakeUid] === choice && fakeUid !== uid) {
+                             if(newPlayers[fakeUid]) newPlayers[fakeUid].score += 1000;
+                         }
+                     }
+                 }
+             }
+
+             await updateDoc(roomRef, {
+                 state: 'results',
+                 players: newPlayers,
+                 roundEndTime: 0
+             });
+        }
+
+        function startTimer(endTime, elementId) {
+            if(timerInterval) clearInterval(timerInterval);
+            const el = document.getElementById(elementId);
+            
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+                el.textContent = remaining;
+                
+                if(remaining <= 5) el.classList.add('text-red-500', 'animate-pulse');
+                else el.classList.remove('text-red-500', 'animate-pulse');
+
+                if(remaining <= 0) {
+                    clearInterval(timerInterval);
+                    // Host loop will pick up the transition, fallback UI update here
+                    if(elementId === 'timer-write') {
+                        document.getElementById('write-area').classList.add('hidden');
+                        document.getElementById('write-waiting').classList.remove('hidden');
+                        document.getElementById('write-waiting').style.display = 'flex';
+                    } else if(elementId === 'timer-choose') {
+                        document.getElementById('choices-area').classList.add('hidden');
+                        document.getElementById('choose-waiting').classList.remove('hidden');
+                        document.getElementById('choose-waiting').style.display = 'flex';
+                    }
+                }
+            }, 1000);
+        }
+
+        // Setup a client-side tick for the host to check timers
+        setInterval(() => {
+            if(localRoomState && localRoomState.host === currentUser?.uid) {
+                checkHostTransitions(localRoomState);
+            }
+        }, 1000);
+
+    </script>
+</body>
+</html>
