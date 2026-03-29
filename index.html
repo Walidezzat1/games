@@ -52,7 +52,7 @@
         ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+<body class="min-h-screen flex flex-col items-center justify-center p-4 relative text-right">
 
     <!-- Background Elements -->
     <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
@@ -78,7 +78,7 @@
             <input type="text" id="input-nickname" placeholder="اسمك المستعار..." class="w-full max-w-xs px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-brand-primary text-center font-bold text-lg" maxlength="15">
             
             <div class="flex flex-col w-full max-w-xs space-y-3 pt-4">
-                <button onclick="createRoom()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
+                <button id="btn-create" onclick="createRoom()" class="btn-primary w-full py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
                     <i data-lucide="plus-circle" class="w-5 h-5"></i> إنشاء غرفة جديدة
                 </button>
                 <div class="relative flex py-2 items-center">
@@ -121,7 +121,7 @@
                 </button>
                 <p class="text-sm text-slate-400 mt-3 text-center">أنت مدير الغرفة. انتظر دخول جميع أصدقائك قبل البدء.</p>
             </div>
-            <div id="guest-waiting" class="w-full flex flex-col items-center">
+            <div id="guest-waiting" class="w-full flex flex-col items-center text-center">
                 <div class="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-3"></div>
                 <p class="text-slate-400">في انتظار مدير الغرفة لبدء اللعبة...</p>
             </div>
@@ -149,7 +149,7 @@
                     </button>
                 </div>
                 
-                <div id="write-waiting" class="hidden flex-col items-center py-6">
+                <div id="write-waiting" class="hidden flex-col items-center py-6 text-center">
                     <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-3"></i>
                     <h3 class="text-xl font-bold text-white mb-2">تم تسجيل إجابتك!</h3>
                     <p class="text-slate-400">في انتظار باقي اللاعبين <span class="animate-pulse">...</span></p>
@@ -174,7 +174,7 @@
                     <!-- Choice buttons generated here -->
                 </div>
 
-                <div id="choose-waiting" class="hidden flex-col items-center py-6 mt-4">
+                <div id="choose-waiting" class="hidden flex-col items-center py-6 mt-4 text-center">
                     <i data-lucide="check-circle-2" class="w-12 h-12 text-brand-success mb-3"></i>
                     <h3 class="text-xl font-bold text-white mb-2">تم اختيار إجابتك!</h3>
                     <p class="text-slate-400">في انتظار باقي اللاعبين <span class="animate-pulse">...</span></p>
@@ -237,10 +237,26 @@
 
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-slate-900/90 z-50 flex flex-col items-center justify-center">
-        <div id="loader-spinner" class="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p id="loader-text" class="text-xl font-bold text-white tracking-wider">جاري الاتصال بالسيرفر...</p>
+    <!-- Enhanced Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-6 text-center">
+        
+        <div id="loader-content" class="flex flex-col items-center transition-all">
+            <div class="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-6"></div>
+            <p class="text-xl font-bold text-white">جاري الاتصال بالخادم...</p>
+            <p class="text-slate-400 text-sm mt-2 max-w-xs">نحاول إعداد بيئة اللعب الجماعي.</p>
+        </div>
+
+        <div id="local-mode-prompt" class="hidden flex-col items-center text-center max-w-md animate-[slideIn_0.3s_ease-out]">
+            <div class="w-20 h-20 bg-brand-secondary rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(236,72,153,0.5)]">
+                <i data-lucide="bot" class="w-10 h-10 text-white"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-3">وضع اللعب مع البوتات</h2>
+            <p class="text-slate-300 mb-8 leading-relaxed text-sm md:text-base">لم يتم العثور على إعدادات الخادم (Firebase) في هذه البيئة. ولكن لا تقلق! قمنا بتفعيل <span class="font-bold text-brand-accent">وضع التجربة (Offline Mode)</span> لتتمكن من تجربة اللعبة كاملة ضد لاعبين آليين.</p>
+            <button onclick="startLocalMode()" class="btn-primary w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
+                <i data-lucide="gamepad-2" class="w-6 h-6"></i> العب الآن مجاناً
+            </button>
+        </div>
+
     </div>
 
     <!-- Toast Container -->
@@ -252,538 +268,490 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ==========================================
-        // 1. Database of Questions
-        // ==========================================
+        // قاعدة البيانات (سيتم استدعاء 5 عشوائياً لكل جولة)
         const questionDatabase = [
             { q: "ما هو أطول نهر في العالم؟", a: "نهر النيل", c: "جغرافيا" },
             { q: "ما هو المعدن السائل في درجة حرارة الغرفة؟", a: "الزئبق", c: "علوم" },
-            { q: "من رسم لوحة الموناليزا؟", a: "ليوناردو دا فينشي", c: "فنون" },
-            { q: "ما هو الكوكب الملقب بالكوكب الأحمر؟", a: "المريخ", c: "علوم" },
-            { q: "في أي قارة تقع دولة البرازيل؟", a: "أمريكا الجنوبية", c: "جغرافيا" },
-            { q: "ما هي عاصمة اليابان؟", a: "طوكيو", c: "جغرافيا" },
-            { q: "من هو مخترع المصباح الكهربائي؟", a: "توماس إديسون", c: "تاريخ" },
-            { q: "ما هو العنصر الكيميائي الذي رمزه O؟", a: "الأكسجين", c: "علوم" },
-            { q: "ما هو الحيوان البري الأسرع في العالم؟", a: "الفهد", c: "علوم" },
-            { q: "كم عدد قارات العالم؟", a: "سبع قارات", c: "جغرافيا" },
-            { q: "ما هو أقرب كوكب للشمس؟", a: "عطارد", c: "علوم" },
-            { q: "في أي عام بدأت الحرب العالمية الثانية؟", a: "1939", c: "تاريخ" },
-            { q: "من هو مؤلف كتاب البخلاء؟", a: "الجاحظ", c: "أدب" },
-            { q: "ما هو الغاز الذي تمتصه النباتات؟", a: "ثاني أكسيد الكربون", c: "علوم" },
-            { q: "أين يقع تمثال الحرية؟", a: "نيويورك", c: "جغرافيا" },
-            { q: "ما هي أكبر دولة في العالم من حيث المساحة؟", a: "روسيا", c: "جغرافيا" },
-            { q: "كم عدد اللاعبين في فريق كرة القدم؟", a: "11", c: "رياضة" },
-            { q: "ما هي اللغة الأكثر تحدثاً في العالم كلغة أم؟", a: "الماندرين", c: "ثقافة عامة" },
-            { q: "أين يقع برج إيفل؟", a: "باريس", c: "جغرافيا" },
-            { q: "ما هو أعلى جبل في العالم؟", a: "إيفرست", c: "جغرافيا" },
-            { q: "من هو أول رائد فضاء في العالم؟", a: "يوري غاغارين", c: "تاريخ" },
+            { q: "من هو الرامي الكويتي الفائز بذهبية أولمبياد ريو 2016؟", a: "فهيد الديحاني", c: "رياضة محلية" },
             { q: "كم عدد مرات فوز منتخب الكويت ببطولة كأس الخليج العربي؟", a: "10 مرات", c: "رياضة محلية" },
-            { q: "في أي عام فاز منتخب الكويت بكأس آسيا لكرة القدم؟", a: "1980", c: "رياضة محلية" },
-            { q: "ما هو النادي الكويتي الملقب بـ 'الزعيم'؟", a: "نادي العربي", c: "رياضة محلية" },
-            { q: "المنتخب العربي الوحيد الذي وصل لنصف نهائي كأس العالم 2022 هو؟", a: "المغرب", c: "رياضة عربية" },
-            { q: "أول دولة عربية تستضيف كأس العالم هي؟", a: "قطر", c: "رياضة عربية" },
-            { q: "من هو الهداف التاريخي لدوري أبطال أوروبا؟", a: "كريستيانو رونالدو", c: "رياضة عالمية" },
-            { q: "النادي الأكثر تتويجاً بدوري أبطال أوروبا هو؟", a: "ريال مدريد", c: "رياضة عالمية" }
+            { q: "من هو اللاعب الأكثر فوزاً بجائزة الكرة الذهبية؟", a: "ليونيل ميسي", c: "رياضة عالمية" },
+            { q: "النادي الملقب بـ 'العالمي' في السعودية هو؟", a: "النصر", c: "رياضة خليجية" },
+            { q: "في أي عام فاز منتخب الكويت بكأس آسيا؟", a: "1980", c: "رياضة محلية" },
+            { q: "كم عدد اللاعبين الأساسيين في فريق كرة السلة؟", a: "5 لاعبين", c: "رياضة عالمية" },
+            { q: "ما هو أسرع حيوان بري؟", a: "الفهد", c: "علوم" },
+            { q: "ما هو العنصر الكيميائي الذي رمزه O؟", a: "الأكسجين", c: "علوم" },
+            { q: "أين تقع أهرامات الجيزة؟", a: "مصر", c: "تاريخ" }
         ];
 
-        // ==========================================
-        // 2. Firebase & Setup
-        // ==========================================
-        let db, auth;
-        let appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-app';
-        let currentUser = null;
+        let auth, db, currentUser = null;
         let currentRoomId = null;
         let unsubscribeRoom = null;
-        let myName = localStorage.getItem('nickname') || '';
-        let timerInterval = null;
-        let audioCtx = null;
+        let localRoomState = {};
 
-        const showLoadingError = (msg) => {
-            const loaderText = document.getElementById('loader-text');
-            const loaderSpinner = document.getElementById('loader-spinner');
-            if (loaderSpinner) loaderSpinner.remove();
-            if (loaderText) {
-                loaderText.innerHTML = `<span class="text-red-500">${msg}</span><br><button onclick="location.reload()" class="mt-4 bg-slate-700 px-4 py-2 rounded text-sm">إعادة المحاولة</button>`;
-            }
-        };
+        // Offline / Bot Mode State
+        window.useLocalMode = false;
+        let localModeData = null;
+        let localModeListeners = [];
 
-        const initializeFirebase = async () => {
+        async function startApp() {
             try {
-                if (typeof __firebase_config === 'undefined') {
-                    throw new Error("Missing Firebase configuration.");
+                if (typeof __firebase_config === 'undefined' || !__firebase_config) {
+                    throw new Error("Missing Firebase Configuration");
                 }
-
                 const firebaseConfig = JSON.parse(__firebase_config);
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // Setup Auth Listener
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+
+                await initAuth();
+
                 onAuthStateChanged(auth, (user) => {
                     currentUser = user;
-                    if (user) {
+                    if (user && !window.useLocalMode) {
                         document.getElementById('loading-overlay').classList.add('hidden');
                         document.getElementById('app-container').classList.remove('hidden');
+                        if (window.lucide) lucide.createIcons();
                         showScreen('screen-login');
                     }
                 });
 
-                // Rule 3: Auth First
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+            } catch (err) {
+                console.warn("Firebase Init Failed, showing local mode prompt:", err);
+                document.getElementById('loader-content').classList.add('hidden');
+                document.getElementById('local-mode-prompt').classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+            }
+        }
 
-            } catch (error) {
-                console.error("Firebase Initialization Error:", error);
-                showLoadingError("خطأ في الاتصال بالسيرفر. يرجى التأكد من اتصال الإنترنت.");
+        window.addEventListener('DOMContentLoaded', startApp);
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-v2';
+
+        // تفعيل وضع اللعب المحلي
+        window.startLocalMode = () => {
+            window.useLocalMode = true;
+            currentUser = { uid: 'local-player-1' };
+            document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            showScreen('screen-login');
+            showToast("تم تفعيل وضع التجربة (Offline Mode)", "success");
+        };
+
+        function triggerLocalUpdate() {
+            localModeListeners.forEach(fn => fn({
+                exists: () => !!localModeData,
+                data: () => JSON.parse(JSON.stringify(localModeData))
+            }));
+        }
+
+        async function setRoomState(updates) {
+            if (window.useLocalMode) {
+                for (let key in updates) {
+                    if (key.includes('.')) {
+                        const parts = key.split('.');
+                        let obj = localModeData;
+                        for (let i = 0; i < parts.length - 1; i++) {
+                            if (!obj[parts[i]]) obj[parts[i]] = {};
+                            obj = obj[parts[i]];
+                        }
+                        obj[parts[parts.length - 1]] = updates[key];
+                    } else {
+                        localModeData[key] = updates[key];
+                    }
+                }
+                triggerLocalUpdate();
+                return Promise.resolve();
+            }
+            return updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), updates);
+        }
+
+        // وظائف الواجهة
+        window.showScreen = (screenId) => {
+            ['screen-login', 'screen-lobby', 'screen-write', 'screen-choose', 'screen-results', 'screen-leaderboard'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(screenId);
+            if(target) {
+                target.classList.remove('hidden');
+                target.classList.add('animate-[slideIn_0.3s_ease-out]');
+                if (window.lucide) lucide.createIcons();
             }
         };
 
-        // Initialize icons
-        lucide.createIcons();
-
-        function initAudio() {
-            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-
-        function playSound(type) {
-            try {
-                if(!audioCtx) return;
-                if(audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                const now = audioCtx.currentTime;
-                if(type === 'click') {
-                    osc.frequency.setValueAtTime(600, now);
-                    gain.gain.setValueAtTime(0.1, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-                    osc.start(); osc.stop(now + 0.1);
-                } else if(type === 'success') {
-                    osc.frequency.setValueAtTime(400, now);
-                    osc.frequency.linearRampToValueAtTime(800, now + 0.2);
-                    gain.gain.setValueAtTime(0.1, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                    osc.start(); osc.stop(now + 0.3);
-                }
-            } catch(e) {}
-        }
-
-        if(myName) document.getElementById('input-nickname').value = myName;
-
-        // ==========================================
-        // 4. Game Functions
-        // ==========================================
-
-        function showScreen(screenId) {
-            ['screen-login', 'screen-lobby', 'screen-write', 'screen-choose', 'screen-results', 'screen-leaderboard'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-            });
-            const target = document.getElementById(screenId);
-            if (target) {
-                target.classList.remove('hidden');
-                window.scrollTo(0, 0);
-            }
-        }
-
-        function showToast(msg, type = "success") {
+        window.showToast = (msg, type = "success") => {
             const container = document.getElementById('toast-container');
-            if (!container) return;
             const toast = document.createElement('div');
-            const color = type === 'success' ? 'bg-brand-success' : 'bg-red-500';
-            toast.className = `toast-enter ${color} text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm pointer-events-auto`;
+            const color = type === 'success' ? 'bg-brand-success' : (type === 'error' ? 'bg-red-500' : 'bg-brand-primary');
+            toast.className = `toast-enter ${color} text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm pointer-events-auto mb-2`;
             toast.textContent = msg;
             container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-
-        function generateRoomCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let res = '';
-            for (let i = 0; i < 5; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
-            return res;
-        }
+            setTimeout(() => { toast.remove(); }, 3000);
+        };
 
         window.createRoom = async () => {
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             const name = document.getElementById('input-nickname').value.trim();
-            if(!name) { showToast("أدخل اسمك أولاً", "error"); return; }
-            myName = name;
+            if(!name) return showToast("أدخل اسمك أولاً", "error");
             localStorage.setItem('nickname', name);
-            initAudio(); playSound('click');
 
             document.getElementById('loading-overlay').classList.remove('hidden');
-            const code = generateRoomCode();
+            document.getElementById('loader-content').classList.remove('hidden');
+            document.getElementById('local-mode-prompt').classList.add('hidden');
+
+            const code = Array.from({length: 5}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*31)]).join('');
             currentRoomId = code;
-            
-            const shuffled = [...questionDatabase].sort(() => 0.5 - Math.random());
-            const selected = shuffled.slice(0, 5);
+
+            const initialData = {
+                host: currentUser.uid,
+                state: 'waiting',
+                players: { [currentUser.uid]: { name: name, score: 0 } },
+                questions: [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 5),
+                currentQuestionIndex: 0,
+                totalRounds: 5,
+                answers: {}, choices: {}
+            };
+
+            if (window.useLocalMode) {
+                localModeData = initialData;
+                localModeData.players['bot1'] = { name: 'أحمد (بوت)', score: 0 };
+                localModeData.players['bot2'] = { name: 'سارة (بوت)', score: 0 };
+                
+                setTimeout(() => {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    listenToRoom(code);
+                }, 500);
+                return;
+            }
 
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
             try {
-                await setDoc(roomRef, {
-                    host: currentUser.uid,
-                    state: 'waiting',
-                    players: { [currentUser.uid]: { name: myName, score: 0 } },
-                    questions: selected,
-                    currentQuestionIndex: 0,
-                    answers: {},
-                    choices: {},
-                    totalRounds: 5
-                });
+                await setDoc(roomRef, initialData);
                 listenToRoom(code);
-            } catch(e) {
-                console.error(e);
-                document.getElementById('loading-overlay').classList.add('hidden');
-                showToast("فشل إنشاء الغرفة", "error");
+            } catch(e) { 
+                showToast("فشل إنشاء الغرفة. تأكد من إعدادات قاعدة البيانات.", "error"); 
+                document.getElementById('loading-overlay').classList.add('hidden'); 
             }
         };
 
         window.joinRoom = async () => {
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             const name = document.getElementById('input-nickname').value.trim();
-            const codeInput = document.getElementById('input-room-code');
-            const code = codeInput ? codeInput.value.trim().toUpperCase() : "";
+            const code = document.getElementById('input-room-code').value.trim().toUpperCase();
+            if(!name || code.length < 5) return showToast("أدخل الاسم والكود بشكل صحيح", "error");
             
-            if(!name || code.length !== 5) { showToast("بيانات غير مكتملة", "error"); return; }
-            myName = name;
-            localStorage.setItem('nickname', name);
-            initAudio(); playSound('click');
-
             document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loader-content').classList.remove('hidden');
+            document.getElementById('local-mode-prompt').classList.add('hidden');
+
+            if (window.useLocalMode) {
+                if (localModeData && localModeData.state === 'waiting') {
+                    localModeData.players[currentUser.uid] = { name, score: 0 };
+                    setTimeout(() => {
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                        listenToRoom(code);
+                    }, 500);
+                } else {
+                    showToast("الغرفة غير موجودة", "error");
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                }
+                return;
+            }
+
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
             try {
                 const snap = await getDoc(roomRef);
-                if(snap.exists()) {
-                    currentRoomId = code;
-                    await updateDoc(roomRef, { [`players.${currentUser.uid}`]: { name: myName, score: 0 } });
+                if(snap.exists() && snap.data().state === 'waiting') {
+                    await updateDoc(roomRef, { [`players.${currentUser.uid}`]: { name, score: 0 } });
                     listenToRoom(code);
-                } else {
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                    showToast("الغرفة غير موجودة", "error");
-                }
-            } catch(e) {
-                console.error(e);
-                document.getElementById('loading-overlay').classList.add('hidden');
-                showToast("خطأ في الانضمام", "error");
+                } else { throw new Error(); }
+            } catch(e) { 
+                showToast("الغرفة غير موجودة أو بدأت بالفعل", "error"); 
+                document.getElementById('loading-overlay').classList.add('hidden'); 
             }
         };
 
         function listenToRoom(roomId) {
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+            currentRoomId = roomId;
             if(unsubscribeRoom) unsubscribeRoom();
+            
+            if (window.useLocalMode) {
+                localModeListeners = [];
+                unsubscribeRoom = () => { localModeListeners = []; };
+                localModeListeners.push((snap) => {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    const data = snap.data();
+                    if(data.players && !data.players[currentUser.uid]) { 
+                        showToast("لقد تم طردك من الغرفة", "error");
+                        showScreen('screen-login'); 
+                        return; 
+                    }
+                    const prevState = localRoomState.state;
+                    localRoomState = data;
+                    updateUI(data, prevState);
+                });
+                triggerLocalUpdate();
+                return;
+            }
+
+            if (!currentUser) return;
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+            
             unsubscribeRoom = onSnapshot(roomRef, (snap) => {
                 document.getElementById('loading-overlay').classList.add('hidden');
-                if(!snap.exists()) {
-                    showToast("تم إغلاق الغرفة", "error");
-                    leaveRoom();
-                    return;
+                if(!snap.exists()) { showScreen('screen-login'); return; }
+                const data = snap.data();
+                if(data.players && !data.players[currentUser.uid]) { 
+                    showToast("لقد تم طردك من الغرفة", "error");
+                    showScreen('screen-login'); 
+                    return; 
                 }
-                updateUI(snap.data());
-            }, (err) => {
-                console.error(err);
-                showToast("فقدت الاتصال بالغرفة", "error");
+                const prevState = localRoomState.state;
+                localRoomState = data;
+                updateUI(data, prevState);
+            }, (error) => {
+                console.error("Firestore error:", error);
             });
         }
 
-        let localRoomState = null;
-        function updateUI(data) {
-            const prevState = localRoomState?.state;
-            localRoomState = data;
-            const isHost = data.host === currentUser?.uid;
-
+        function updateUI(data, prevState) {
+            const isHost = data.host === currentUser.uid;
             if(isHost) checkHostTransitions(data);
 
-            switch(data.state) {
-                case 'waiting':
-                    showScreen('screen-lobby');
-                    renderLobby(data, isHost);
-                    break;
-                case 'writing':
-                    if(prevState !== 'writing') setupWritePhase(data);
-                    renderWritePhase(data);
-                    break;
-                case 'choosing':
-                    if(prevState !== 'choosing') setupChoosePhase(data);
-                    renderChoosePhase(data);
-                    break;
-                case 'results':
-                    if(prevState !== 'results') setupResultsPhase(data, isHost);
-                    break;
-                case 'leaderboard':
-                    renderLeaderboard(data, isHost);
-                    break;
-            }
+            if(data.state === 'waiting') renderLobby(data, isHost);
+            else if(data.state === 'writing') setupWritePhase(data);
+            else if(data.state === 'choosing') setupChoosePhase(data);
+            else if(data.state === 'results') setupResultsPhase(data, isHost);
+            else if(data.state === 'leaderboard') renderLeaderboard(data, isHost);
         }
 
         function renderLobby(data, isHost) {
-            const roomDisplay = document.getElementById('display-room-code');
-            if (roomDisplay) roomDisplay.textContent = currentRoomId;
-            
+            showScreen('screen-lobby');
+            document.getElementById('display-room-code').textContent = currentRoomId;
             const list = document.getElementById('players-list');
-            if (list) {
-                list.innerHTML = '';
-                const pCount = Object.keys(data.players || {}).length;
-                const countDisplay = document.getElementById('player-count');
-                if (countDisplay) countDisplay.textContent = pCount;
-                
-                for(let id in data.players) {
-                    const div = document.createElement('div');
-                    div.className = "bg-slate-700/80 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 border border-slate-600";
-                    div.innerHTML = `<i data-lucide="user" class="w-4 h-4"></i> ${data.players[id].name}`;
-                    list.appendChild(div);
-                }
-                lucide.createIcons();
-            }
-            
-            const hostControls = document.getElementById('host-controls');
-            const guestWaiting = document.getElementById('guest-waiting');
-            if (hostControls) hostControls.classList.toggle('hidden', !isHost);
-            if (guestWaiting) guestWaiting.classList.toggle('hidden', isHost);
+            list.innerHTML = Object.entries(data.players).map(([uid, p]) => `
+                <div class="px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${uid === currentUser.uid ? 'bg-brand-primary' : 'bg-slate-700'}">
+                    ${p.name} ${uid === data.host ? '👑' : ''}
+                    ${isHost && uid !== currentUser.uid && !window.useLocalMode ? `<button onclick="kickPlayer('${uid}')" class="ml-2 text-red-400 font-bold hover:text-red-200">×</button>` : ''}
+                </div>
+            `).join('');
+            document.getElementById('player-count').textContent = Object.keys(data.players).length;
+            document.getElementById('host-controls').classList.toggle('hidden', !isHost);
+            document.getElementById('guest-waiting').classList.toggle('hidden', isHost);
         }
 
-        window.startGame = async () => {
-            if(!currentRoomId || !db) return;
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            await updateDoc(roomRef, { state: 'writing', roundEndTime: Date.now() + 35000 });
+        window.kickPlayer = (uid) => {
+            if (!currentUser) return;
+            const players = { ...localRoomState.players };
+            delete players[uid];
+            setRoomState({ players });
+        };
+
+        window.startGame = () => {
+            if (!currentUser) return;
+            setRoomState({ 
+                state: 'writing', 
+                roundEndTime: Date.now() + 35000 
+            });
+        };
+        
+        window.submitFakeAnswer = () => {
+            if (!currentUser) return;
+            const ans = document.getElementById('input-fake-answer').value.trim();
+            if(!ans) return showToast("اكتب إجابة", "error");
+            setRoomState({ [`answers.${currentUser.uid}`]: ans });
         };
 
         function setupWritePhase(data) {
             showScreen('screen-write');
             const q = data.questions[data.currentQuestionIndex];
-            const categoryEl = document.getElementById('question-category');
-            const textEl = document.getElementById('question-text');
-            const roundEl = document.getElementById('round-number-write');
-            
-            if (categoryEl) categoryEl.textContent = q.c;
-            if (textEl) textEl.textContent = q.q;
-            if (roundEl) roundEl.textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
-            
-            const writeArea = document.getElementById('write-area');
-            const writeWaiting = document.getElementById('write-waiting');
-            const inputFake = document.getElementById('input-fake-answer');
-            
-            if (writeArea) writeArea.classList.remove('hidden');
-            if (writeWaiting) writeWaiting.classList.add('hidden');
-            if (inputFake) inputFake.value = '';
-            
-            startTimer(data.roundEndTime, 'timer-write');
+            document.getElementById('question-category').textContent = q.c;
+            document.getElementById('question-text').textContent = q.q;
+            document.getElementById('round-number-write').textContent = data.currentQuestionIndex + 1;
+            const submitted = data.answers && data.answers[currentUser.uid];
+            document.getElementById('write-area').classList.toggle('hidden', !!submitted);
+            document.getElementById('write-waiting').classList.toggle('hidden', !submitted);
+            updateTimer(data.roundEndTime, 'timer-write');
         }
-
-        function renderWritePhase(data) {
-            if(data.answers?.[currentUser?.uid]) {
-                const writeArea = document.getElementById('write-area');
-                const writeWaiting = document.getElementById('write-waiting');
-                if (writeArea) writeArea.classList.add('hidden');
-                if (writeWaiting) {
-                    writeWaiting.classList.remove('hidden');
-                    writeWaiting.style.display = 'flex';
-                }
-            }
-        }
-
-        window.submitFakeAnswer = async () => {
-            const inputEl = document.getElementById('input-fake-answer');
-            const ans = inputEl ? inputEl.value.trim() : "";
-            if(!ans || !db) return;
-            if(ans === localRoomState.questions[localRoomState.currentQuestionIndex].a) {
-                showToast("هذه هي الإجابة الصحيحة! اكتب خدعة مضللة.", "error"); return;
-            }
-            playSound('success');
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            await updateDoc(roomRef, { [`answers.${currentUser.uid}`]: ans });
-        };
 
         function setupChoosePhase(data) {
             showScreen('screen-choose');
             const q = data.questions[data.currentQuestionIndex];
-            const textEl = document.getElementById('question-text-choose');
-            const roundEl = document.getElementById('round-number-choose');
-            
-            if (textEl) textEl.textContent = q.q;
-            if (roundEl) roundEl.textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
-            
-            const options = [{ text: q.a, isCorrect: true }];
-            for(let id in data.answers) {
-                if(id !== currentUser?.uid) options.push({ text: data.answers[id], isCorrect: false });
-            }
-            options.sort(() => 0.5 - Math.random());
-
+            document.getElementById('question-text-choose').textContent = q.q;
+            const submitted = data.choices && data.choices[currentUser.uid];
+            document.getElementById('choose-waiting').classList.toggle('hidden', !submitted);
             const area = document.getElementById('choices-area');
-            const chooseWaiting = document.getElementById('choose-waiting');
-            if (area) {
-                area.innerHTML = '';
-                area.classList.remove('hidden');
-                options.forEach(opt => {
-                    const btn = document.createElement('button');
-                    btn.className = "w-full p-4 rounded-xl bg-slate-800 border-2 border-slate-700 hover:border-brand-primary text-lg font-bold transition-all hover:bg-slate-700";
-                    btn.textContent = opt.text;
-                    btn.onclick = () => submitChoice(opt.text);
-                    area.appendChild(btn);
-                });
-            }
-            if (chooseWaiting) chooseWaiting.classList.add('hidden');
+            area.classList.toggle('hidden', !!submitted);
             
-            startTimer(data.roundEndTime, 'timer-choose');
-        }
-
-        function renderChoosePhase(data) {
-            if(data.choices?.[currentUser?.uid]) {
-                const area = document.getElementById('choices-area');
-                const chooseWaiting = document.getElementById('choose-waiting');
-                if (area) area.classList.add('hidden');
-                if (chooseWaiting) {
-                    chooseWaiting.classList.remove('hidden');
-                    chooseWaiting.style.display = 'flex';
-                }
+            if(!submitted) {
+                const options = [q.a];
+                Object.entries(data.answers || {}).forEach(([uid, ans]) => {
+                    if (uid !== currentUser.uid) options.push(ans);
+                });
+                
+                area.innerHTML = options.sort(() => 0.5 - Math.random()).map(opt => `
+                    <button onclick="submitChoice('${opt.replace(/'/g, "\\'")}')" class="p-4 bg-slate-800 rounded-xl font-bold border-2 border-slate-700 hover:border-brand-primary transition-all">
+                        ${opt}
+                    </button>
+                `).join('');
             }
+            updateTimer(data.roundEndTime, 'timer-choose');
         }
 
-        window.submitChoice = async (txt) => {
-            if (!db || !currentUser) return;
-            playSound('success');
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            await updateDoc(roomRef, { [`choices.${currentUser.uid}`]: txt });
+        window.submitChoice = (val) => {
+            if (!currentUser) return;
+            setRoomState({ [`choices.${currentUser.uid}`]: val });
         };
 
         function setupResultsPhase(data, isHost) {
             showScreen('screen-results');
             const q = data.questions[data.currentQuestionIndex];
-            const resultsQ = document.getElementById('results-question');
-            const correctAns = document.getElementById('correct-answer-display');
-            
-            if (resultsQ) resultsQ.textContent = q.q;
-            if (correctAns) correctAns.textContent = q.a;
-            
-            const myChoice = data.choices?.[currentUser?.uid];
+            document.getElementById('correct-answer-display').textContent = q.a;
+            document.getElementById('results-question').textContent = q.q;
+            document.getElementById('host-next-round').classList.toggle('hidden', !isHost);
             const details = document.getElementById('results-details');
-            if (details) {
-                details.innerHTML = '';
-                if(myChoice === q.a) {
-                    details.innerHTML = `<div class="bg-brand-success/20 p-4 rounded-lg text-brand-success font-bold text-center border border-brand-success/30">أحسنت! إجابة صحيحة (+1000)</div>`;
-                } else if(myChoice) {
-                    details.innerHTML = `<div class="bg-red-500/20 p-4 rounded-lg text-red-400 font-bold text-center border border-red-500/30">لقد انخدعت! الإجابة التي اخترتها كانت فخاً.</div>`;
-                } else {
-                    details.innerHTML = `<div class="bg-slate-700/50 p-4 rounded-lg text-slate-400 font-bold text-center">انتهى الوقت ولم تختر أي إجابة!</div>`;
-                }
-            }
-
-            const hostNext = document.getElementById('host-next-round');
-            if (hostNext) hostNext.classList.toggle('hidden', !isHost);
+            
+            details.innerHTML = Object.entries(data.choices || {}).map(([uid, choice]) => `
+                <div class="flex justify-between items-center p-3 rounded-lg ${choice === q.a ? 'bg-brand-success/10 border border-brand-success/30' : 'bg-red-500/10 border border-red-500/30'}">
+                    <span class="text-brand-accent font-bold">${data.players[uid]?.name || 'لاعب'}</span> 
+                    <div class="text-left">
+                        <p class="text-xs text-slate-400">اختار:</p>
+                        <p class="font-bold text-white">${choice}</p>
+                    </div>
+                    ${choice === q.a ? '<span class="text-brand-success font-bold text-xs">(+1000)</span>' : '<span class="text-red-400 font-bold text-xs">(خدعه صديقه)</span>'}
+                </div>
+            `).join('') || '<p class="text-center text-slate-500">لم يقم أحد بالاختيار!</p>';
         }
 
-        window.nextRound = async () => {
-            if (!db) return;
-            const data = localRoomState;
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            if(data.currentQuestionIndex + 1 >= data.totalRounds) {
-                await updateDoc(roomRef, { state: 'leaderboard' });
-            } else {
-                await updateDoc(roomRef, {
-                    state: 'writing',
-                    currentQuestionIndex: data.currentQuestionIndex + 1,
-                    answers: {}, choices: {},
-                    roundEndTime: Date.now() + 35000
-                });
-            }
+        window.nextRound = () => {
+            if (!currentUser) return;
+            const nextIdx = localRoomState.currentQuestionIndex + 1;
+            const state = nextIdx >= localRoomState.totalRounds ? 'leaderboard' : 'writing';
+            setRoomState({ 
+                state, 
+                currentQuestionIndex: nextIdx, 
+                answers: {}, 
+                choices: {}, 
+                roundEndTime: Date.now() + 35000 
+            });
         };
 
         function renderLeaderboard(data, isHost) {
             showScreen('screen-leaderboard');
-            const list = document.getElementById('leaderboard-list');
-            if (list) {
-                list.innerHTML = '';
-                const sorted = Object.values(data.players || {}).sort((a,b) => b.score - a.score);
-                sorted.forEach((p, i) => {
-                    const div = document.createElement('div');
-                    div.className = "flex justify-between items-center p-4 rounded-xl bg-slate-800 border border-slate-700";
-                    div.innerHTML = `<span class="font-bold text-lg">${i+1}. ${p.name}</span> <span class="text-brand-accent font-mono font-bold text-xl">${p.score}</span>`;
-                    list.appendChild(div);
-                });
-            }
-            const hostAgain = document.getElementById('host-play-again');
-            if (hostAgain) hostAgain.classList.toggle('hidden', !isHost);
+            const sorted = Object.values(data.players).sort((a,b) => b.score - a.score);
+            document.getElementById('leaderboard-list').innerHTML = sorted.map((p, i) => `
+                <div class="flex justify-between p-3 bg-slate-800 rounded-lg border border-slate-700 items-center">
+                    <span class="font-bold">${i+1}. ${p.name}</span>
+                    <span class="text-brand-accent font-mono text-xl">${p.score}</span>
+                </div>
+            `).join('');
+            document.getElementById('host-play-again').classList.toggle('hidden', !isHost);
         }
 
-        window.playAgain = async () => {
-            if (!db) return;
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            const newPlayers = {...(localRoomState?.players || {})};
-            for(let id in newPlayers) newPlayers[id].score = 0;
-            const shuffled = [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 5);
-            await updateDoc(roomRef, {
-                state: 'waiting', players: newPlayers, questions: shuffled,
-                currentQuestionIndex: 0, answers: {}, choices: {}
+        window.playAgain = () => {
+            if (!currentUser) return;
+            const resetPlayers = { ...localRoomState.players };
+            Object.keys(resetPlayers).forEach(uid => resetPlayers[uid].score = 0);
+            setRoomState({ 
+                state: 'waiting', 
+                players: resetPlayers, 
+                questions: [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 5),
+                currentQuestionIndex: 0,
+                answers: {},
+                choices: {}
             });
         };
 
-        window.leaveRoom = () => {
-            if(unsubscribeRoom) unsubscribeRoom();
-            currentRoomId = null;
-            showScreen('screen-login');
-        };
-
-        function startTimer(endTime, id) {
-            if(timerInterval) clearInterval(timerInterval);
+        let activeTimer = null;
+        function updateTimer(end, id) {
             const el = document.getElementById(id);
-            if (!el) return;
-            timerInterval = setInterval(() => {
-                const rem = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+            if(!el) return;
+            if(activeTimer) clearInterval(activeTimer);
+            const tick = () => {
+                const rem = Math.max(0, Math.floor((end - Date.now()) / 1000));
                 el.textContent = rem;
-                if(rem <= 5) el.classList.add('text-red-500', 'animate-pulse');
+                if (rem <= 5) el.classList.add('text-red-500', 'animate-pulse');
                 else el.classList.remove('text-red-500', 'animate-pulse');
-                
-                if(rem <= 0) {
-                    clearInterval(timerInterval);
-                }
-            }, 1000);
+                if(rem <= 0) clearInterval(activeTimer);
+            };
+            activeTimer = setInterval(tick, 1000);
+            tick();
         }
 
         async function checkHostTransitions(data) {
-            if (!db || !currentUser || data.host !== currentUser.uid) return;
-            
-            const pCount = Object.keys(data.players || {}).length;
+            if (!currentUser) return;
+            const pCount = Object.keys(data.players).length;
             const now = Date.now();
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            
+            // محاكاة ذكاء البوتات (Bots Logic) في وضع التجربة
+            if (window.useLocalMode) {
+                if (data.state === 'writing') {
+                    let updated = false;
+                    ['bot1', 'bot2'].forEach(bot => {
+                        if (data.players[bot] && (!data.answers || !data.answers[bot])) {
+                            if (Math.random() < 0.1) { 
+                                const botFakes = ["باريس", "لندن", "نيوتن", "الحديد", "المريخ", "القاهرة", "1990", "أديسون", "أفريقيا", "آسيا", "الذهب", "1985", "ميسي", "أوروبا"];
+                                if (!localModeData.answers) localModeData.answers = {};
+                                localModeData.answers[bot] = botFakes[Math.floor(Math.random() * botFakes.length)];
+                                updated = true;
+                            }
+                        }
+                    });
+                    if (updated) triggerLocalUpdate();
+                } else if (data.state === 'choosing') {
+                    let updated = false;
+                    ['bot1', 'bot2'].forEach(bot => {
+                        if (data.players[bot] && (!data.choices || !data.choices[bot])) {
+                            if (Math.random() < 0.1) {
+                                const opts = [data.questions[data.currentQuestionIndex].a, ...Object.values(data.answers || {})];
+                                if (!localModeData.choices) localModeData.choices = {};
+                                localModeData.choices[bot] = opts[Math.floor(Math.random() * opts.length)];
+                                updated = true;
+                            }
+                        }
+                    });
+                    if (updated) triggerLocalUpdate();
+                }
+            }
 
             if(data.state === 'writing') {
-                const aCount = Object.keys(data.answers || {}).length;
-                if(aCount === pCount || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
-                    await updateDoc(roomRef, { state: 'choosing', roundEndTime: Date.now() + 25000 });
+                if(Object.keys(data.answers || {}).length === pCount || (data.roundEndTime && now > data.roundEndTime)) {
+                    setRoomState({ 
+                        state: 'choosing', 
+                        roundEndTime: now + 25000 
+                    });
                 }
             } else if(data.state === 'choosing') {
-                const cCount = Object.keys(data.choices || {}).length;
-                if(cCount === pCount || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
-                    calculateScores(data);
-                }
-            }
-        }
-
-        async function calculateScores(data) {
-            if (!db) return;
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            const newPlayers = JSON.parse(JSON.stringify(data.players || {}));
-            const correct = data.questions[data.currentQuestionIndex].a;
-            
-            for(let uid in (data.choices || {})) {
-                const choice = data.choices[uid];
-                if(choice === correct) {
-                    if (newPlayers[uid]) newPlayers[uid].score += 1000;
-                } else {
-                    for(let fUid in (data.answers || {})) {
-                        if(data.answers[fUid] === choice && fUid !== uid) {
-                            if (newPlayers[fUid]) newPlayers[fUid].score += 1000;
+                if(Object.keys(data.choices || {}).length === pCount || (data.roundEndTime && now > data.roundEndTime)) {
+                    let nextPlayers = JSON.parse(JSON.stringify(data.players));
+                    const correct = data.questions[data.currentQuestionIndex].a;
+                    
+                    Object.entries(data.choices || {}).forEach(([uid, val]) => {
+                        if(val === correct) {
+                            if (nextPlayers[uid]) nextPlayers[uid].score += 1000;
+                        } else {
+                            const authorEntry = Object.entries(data.answers || {}).find(([auid, a]) => a === val);
+                            const authorUid = authorEntry ? authorEntry[0] : null;
+                            if(authorUid && authorUid !== uid && nextPlayers[authorUid]) {
+                                nextPlayers[authorUid].score += 1000;
+                            }
                         }
-                    }
+                    });
+                    
+                    setRoomState({ 
+                        state: 'results', 
+                        players: nextPlayers 
+                    });
                 }
             }
-            await updateDoc(roomRef, { state: 'results', players: newPlayers, roundEndTime: 0 });
         }
 
         window.copyRoomCode = () => {
@@ -794,11 +762,15 @@
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            showToast("تم النسخ بنجاح!");
+            showToast("تم نسخ الكود بنجاح!");
         };
 
-        // Initialize Firebase on load
-        initializeFirebase();
+        window.leaveRoom = () => {
+            if(unsubscribeRoom) unsubscribeRoom();
+            currentRoomId = null;
+            localModeData = null;
+            showScreen('screen-login');
+        };
 
     </script>
 </body>
