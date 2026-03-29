@@ -23,7 +23,7 @@
                     },
                     colors: {
                         brand: {
-                            dark: '#1e1b4b',
+                            dark: '#0f172a',
                             primary: '#4f46e5',
                             secondary: '#ec4899',
                             accent: '#f59e0b',
@@ -138,7 +138,7 @@
             </div>
 
             <div class="w-full glass-panel rounded-2xl p-6 text-center shadow-xl">
-                <span class="text-sm text-brand-primary font-bold mb-2 block" id="question-category">العلوم</span>
+                <span class="text-sm text-brand-primary font-bold mb-2 block" id="question-category">الفئة</span>
                 <h2 id="question-text" class="text-2xl md:text-3xl font-bold leading-relaxed mb-6">...</h2>
                 
                 <div id="write-area" class="space-y-4">
@@ -194,7 +194,7 @@
                 </div>
 
                 <div id="results-details" class="space-y-4 text-right max-h-[40vh] overflow-y-auto p-4 bg-slate-800/50 rounded-xl">
-                    <!-- Detailed results (who tricked who) -->
+                    <!-- Detailed results -->
                 </div>
 
                 <div id="host-next-round" class="hidden mt-8">
@@ -239,8 +239,8 @@
 
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-slate-900/90 z-50 flex flex-col items-center justify-center">
-        <div class="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="text-xl font-bold text-white tracking-wider">جاري التحميل...</p>
+        <div id="loader-spinner" class="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p id="loader-text" class="text-xl font-bold text-white tracking-wider">جاري الاتصال بالسيرفر...</p>
     </div>
 
     <!-- Toast Container -->
@@ -289,12 +289,8 @@
         // ==========================================
         // 2. Firebase & Setup
         // ==========================================
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-app';
-        
+        let db, auth;
+        let appId = typeof __app_id !== 'undefined' ? __app_id : 'smart-bluff-app';
         let currentUser = null;
         let currentRoomId = null;
         let unsubscribeRoom = null;
@@ -302,6 +298,50 @@
         let timerInterval = null;
         let audioCtx = null;
 
+        const showLoadingError = (msg) => {
+            const loaderText = document.getElementById('loader-text');
+            const loaderSpinner = document.getElementById('loader-spinner');
+            if (loaderSpinner) loaderSpinner.remove();
+            if (loaderText) {
+                loaderText.innerHTML = `<span class="text-red-500">${msg}</span><br><button onclick="location.reload()" class="mt-4 bg-slate-700 px-4 py-2 rounded text-sm">إعادة المحاولة</button>`;
+            }
+        };
+
+        const initializeFirebase = async () => {
+            try {
+                if (typeof __firebase_config === 'undefined') {
+                    throw new Error("Missing Firebase configuration.");
+                }
+
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Setup Auth Listener
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    if (user) {
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                        document.getElementById('app-container').classList.remove('hidden');
+                        showScreen('screen-login');
+                    }
+                });
+
+                // Rule 3: Auth First
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                showLoadingError("خطأ في الاتصال بالسيرفر. يرجى التأكد من اتصال الإنترنت.");
+            }
+        };
+
+        // Initialize icons
         lucide.createIcons();
 
         function initAudio() {
@@ -335,28 +375,6 @@
         if(myName) document.getElementById('input-nickname').value = myName;
 
         // ==========================================
-        // 3. Authentication
-        // ==========================================
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
-        };
-
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                document.getElementById('loading-overlay').classList.add('hidden');
-                document.getElementById('app-container').classList.remove('hidden');
-                showScreen('screen-login');
-            }
-        });
-
-        initAuth();
-
-        // ==========================================
         // 4. Game Functions
         // ==========================================
 
@@ -364,11 +382,16 @@
             ['screen-login', 'screen-lobby', 'screen-write', 'screen-choose', 'screen-results', 'screen-leaderboard'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
-            document.getElementById(screenId).classList.remove('hidden');
+            const target = document.getElementById(screenId);
+            if (target) {
+                target.classList.remove('hidden');
+                window.scrollTo(0, 0);
+            }
         }
 
         function showToast(msg, type = "success") {
             const container = document.getElementById('toast-container');
+            if (!container) return;
             const toast = document.createElement('div');
             const color = type === 'success' ? 'bg-brand-success' : 'bg-red-500';
             toast.className = `toast-enter ${color} text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm pointer-events-auto`;
@@ -388,6 +411,7 @@
         }
 
         window.createRoom = async () => {
+            if (!currentUser || !db) return;
             const name = document.getElementById('input-nickname').value.trim();
             if(!name) { showToast("أدخل اسمك أولاً", "error"); return; }
             myName = name;
@@ -402,22 +426,31 @@
             const selected = shuffled.slice(0, 5);
 
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
-            await setDoc(roomRef, {
-                host: currentUser.uid,
-                state: 'waiting',
-                players: { [currentUser.uid]: { name: myName, score: 0 } },
-                questions: selected,
-                currentQuestionIndex: 0,
-                answers: {},
-                choices: {},
-                totalRounds: 5
-            });
-            listenToRoom(code);
+            try {
+                await setDoc(roomRef, {
+                    host: currentUser.uid,
+                    state: 'waiting',
+                    players: { [currentUser.uid]: { name: myName, score: 0 } },
+                    questions: selected,
+                    currentQuestionIndex: 0,
+                    answers: {},
+                    choices: {},
+                    totalRounds: 5
+                });
+                listenToRoom(code);
+            } catch(e) {
+                console.error(e);
+                document.getElementById('loading-overlay').classList.add('hidden');
+                showToast("فشل إنشاء الغرفة", "error");
+            }
         };
 
         window.joinRoom = async () => {
+            if (!currentUser || !db) return;
             const name = document.getElementById('input-nickname').value.trim();
-            const code = document.getElementById('input-room-code').value.trim().toUpperCase();
+            const codeInput = document.getElementById('input-room-code');
+            const code = codeInput ? codeInput.value.trim().toUpperCase() : "";
+            
             if(!name || code.length !== 5) { showToast("بيانات غير مكتملة", "error"); return; }
             myName = name;
             localStorage.setItem('nickname', name);
@@ -425,14 +458,20 @@
 
             document.getElementById('loading-overlay').classList.remove('hidden');
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
-            const snap = await getDoc(roomRef);
-            if(snap.exists()) {
-                currentRoomId = code;
-                await updateDoc(roomRef, { [`players.${currentUser.uid}`]: { name: myName, score: 0 } });
-                listenToRoom(code);
-            } else {
+            try {
+                const snap = await getDoc(roomRef);
+                if(snap.exists()) {
+                    currentRoomId = code;
+                    await updateDoc(roomRef, { [`players.${currentUser.uid}`]: { name: myName, score: 0 } });
+                    listenToRoom(code);
+                } else {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    showToast("الغرفة غير موجودة", "error");
+                }
+            } catch(e) {
+                console.error(e);
                 document.getElementById('loading-overlay').classList.add('hidden');
-                showToast("الغرفة غير موجودة", "error");
+                showToast("خطأ في الانضمام", "error");
             }
         };
 
@@ -441,16 +480,23 @@
             if(unsubscribeRoom) unsubscribeRoom();
             unsubscribeRoom = onSnapshot(roomRef, (snap) => {
                 document.getElementById('loading-overlay').classList.add('hidden');
-                if(!snap.exists()) return;
+                if(!snap.exists()) {
+                    showToast("تم إغلاق الغرفة", "error");
+                    leaveRoom();
+                    return;
+                }
                 updateUI(snap.data());
-            }, (err) => showToast("خطأ في الاتصال", "error"));
+            }, (err) => {
+                console.error(err);
+                showToast("فقدت الاتصال بالغرفة", "error");
+            });
         }
 
         let localRoomState = null;
         function updateUI(data) {
             const prevState = localRoomState?.state;
             localRoomState = data;
-            const isHost = data.host === currentUser.uid;
+            const isHost = data.host === currentUser?.uid;
 
             if(isHost) checkHostTransitions(data);
 
@@ -477,24 +523,33 @@
         }
 
         function renderLobby(data, isHost) {
-            document.getElementById('display-room-code').textContent = currentRoomId;
-            const list = document.getElementById('players-list');
-            list.innerHTML = '';
-            const pCount = Object.keys(data.players).length;
-            document.getElementById('player-count').textContent = pCount;
+            const roomDisplay = document.getElementById('display-room-code');
+            if (roomDisplay) roomDisplay.textContent = currentRoomId;
             
-            for(let id in data.players) {
-                const div = document.createElement('div');
-                div.className = "bg-slate-700 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2";
-                div.innerHTML = `<i data-lucide="user" class="w-4 h-4"></i> ${data.players[id].name}`;
-                list.appendChild(div);
+            const list = document.getElementById('players-list');
+            if (list) {
+                list.innerHTML = '';
+                const pCount = Object.keys(data.players || {}).length;
+                const countDisplay = document.getElementById('player-count');
+                if (countDisplay) countDisplay.textContent = pCount;
+                
+                for(let id in data.players) {
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-700/80 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 border border-slate-600";
+                    div.innerHTML = `<i data-lucide="user" class="w-4 h-4"></i> ${data.players[id].name}`;
+                    list.appendChild(div);
+                }
+                lucide.createIcons();
             }
-            lucide.createIcons();
-            document.getElementById('host-controls').classList.toggle('hidden', !isHost);
-            document.getElementById('guest-waiting').classList.toggle('hidden', isHost);
+            
+            const hostControls = document.getElementById('host-controls');
+            const guestWaiting = document.getElementById('guest-waiting');
+            if (hostControls) hostControls.classList.toggle('hidden', !isHost);
+            if (guestWaiting) guestWaiting.classList.toggle('hidden', isHost);
         }
 
         window.startGame = async () => {
+            if(!currentRoomId || !db) return;
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             await updateDoc(roomRef, { state: 'writing', roundEndTime: Date.now() + 35000 });
         };
@@ -502,27 +557,43 @@
         function setupWritePhase(data) {
             showScreen('screen-write');
             const q = data.questions[data.currentQuestionIndex];
-            document.getElementById('question-category').textContent = q.c;
-            document.getElementById('question-text').textContent = q.q;
-            document.getElementById('round-number-write').textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
-            document.getElementById('write-area').classList.remove('hidden');
-            document.getElementById('write-waiting').classList.add('hidden');
+            const categoryEl = document.getElementById('question-category');
+            const textEl = document.getElementById('question-text');
+            const roundEl = document.getElementById('round-number-write');
+            
+            if (categoryEl) categoryEl.textContent = q.c;
+            if (textEl) textEl.textContent = q.q;
+            if (roundEl) roundEl.textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
+            
+            const writeArea = document.getElementById('write-area');
+            const writeWaiting = document.getElementById('write-waiting');
+            const inputFake = document.getElementById('input-fake-answer');
+            
+            if (writeArea) writeArea.classList.remove('hidden');
+            if (writeWaiting) writeWaiting.classList.add('hidden');
+            if (inputFake) inputFake.value = '';
+            
             startTimer(data.roundEndTime, 'timer-write');
         }
 
         function renderWritePhase(data) {
-            if(data.answers?.[currentUser.uid]) {
-                document.getElementById('write-area').classList.add('hidden');
-                document.getElementById('write-waiting').classList.remove('hidden');
-                document.getElementById('write-waiting').style.display = 'flex';
+            if(data.answers?.[currentUser?.uid]) {
+                const writeArea = document.getElementById('write-area');
+                const writeWaiting = document.getElementById('write-waiting');
+                if (writeArea) writeArea.classList.add('hidden');
+                if (writeWaiting) {
+                    writeWaiting.classList.remove('hidden');
+                    writeWaiting.style.display = 'flex';
+                }
             }
         }
 
         window.submitFakeAnswer = async () => {
-            const ans = document.getElementById('input-fake-answer').value.trim();
-            if(!ans) return;
+            const inputEl = document.getElementById('input-fake-answer');
+            const ans = inputEl ? inputEl.value.trim() : "";
+            if(!ans || !db) return;
             if(ans === localRoomState.questions[localRoomState.currentQuestionIndex].a) {
-                showToast("هذه هي الإجابة الصحيحة! اكتب خدعة.", "error"); return;
+                showToast("هذه هي الإجابة الصحيحة! اكتب خدعة مضللة.", "error"); return;
             }
             playSound('success');
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
@@ -532,39 +603,50 @@
         function setupChoosePhase(data) {
             showScreen('screen-choose');
             const q = data.questions[data.currentQuestionIndex];
-            document.getElementById('question-text-choose').textContent = q.q;
-            document.getElementById('round-number-choose').textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
+            const textEl = document.getElementById('question-text-choose');
+            const roundEl = document.getElementById('round-number-choose');
+            
+            if (textEl) textEl.textContent = q.q;
+            if (roundEl) roundEl.textContent = `${data.currentQuestionIndex + 1} / ${data.totalRounds}`;
             
             const options = [{ text: q.a, isCorrect: true }];
             for(let id in data.answers) {
-                if(id !== currentUser.uid) options.push({ text: data.answers[id], isCorrect: false });
+                if(id !== currentUser?.uid) options.push({ text: data.answers[id], isCorrect: false });
             }
             options.sort(() => 0.5 - Math.random());
 
             const area = document.getElementById('choices-area');
-            area.innerHTML = '';
-            area.classList.remove('hidden');
-            document.getElementById('choose-waiting').classList.add('hidden');
-
-            options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.className = "w-full p-4 rounded-xl bg-slate-800 border-2 border-slate-700 hover:border-brand-primary text-lg font-bold";
-                btn.textContent = opt.text;
-                btn.onclick = () => submitChoice(opt.text);
-                area.appendChild(btn);
-            });
+            const chooseWaiting = document.getElementById('choose-waiting');
+            if (area) {
+                area.innerHTML = '';
+                area.classList.remove('hidden');
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full p-4 rounded-xl bg-slate-800 border-2 border-slate-700 hover:border-brand-primary text-lg font-bold transition-all hover:bg-slate-700";
+                    btn.textContent = opt.text;
+                    btn.onclick = () => submitChoice(opt.text);
+                    area.appendChild(btn);
+                });
+            }
+            if (chooseWaiting) chooseWaiting.classList.add('hidden');
+            
             startTimer(data.roundEndTime, 'timer-choose');
         }
 
         function renderChoosePhase(data) {
-            if(data.choices?.[currentUser.uid]) {
-                document.getElementById('choices-area').classList.add('hidden');
-                document.getElementById('choose-waiting').classList.remove('hidden');
-                document.getElementById('choose-waiting').style.display = 'flex';
+            if(data.choices?.[currentUser?.uid]) {
+                const area = document.getElementById('choices-area');
+                const chooseWaiting = document.getElementById('choose-waiting');
+                if (area) area.classList.add('hidden');
+                if (chooseWaiting) {
+                    chooseWaiting.classList.remove('hidden');
+                    chooseWaiting.style.display = 'flex';
+                }
             }
         }
 
         window.submitChoice = async (txt) => {
+            if (!db || !currentUser) return;
             playSound('success');
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             await updateDoc(roomRef, { [`choices.${currentUser.uid}`]: txt });
@@ -573,24 +655,31 @@
         function setupResultsPhase(data, isHost) {
             showScreen('screen-results');
             const q = data.questions[data.currentQuestionIndex];
-            document.getElementById('results-question').textContent = q.q;
-            document.getElementById('correct-answer-display').textContent = q.a;
+            const resultsQ = document.getElementById('results-question');
+            const correctAns = document.getElementById('correct-answer-display');
             
-            const myChoice = data.choices?.[currentUser.uid];
+            if (resultsQ) resultsQ.textContent = q.q;
+            if (correctAns) correctAns.textContent = q.a;
+            
+            const myChoice = data.choices?.[currentUser?.uid];
             const details = document.getElementById('results-details');
-            details.innerHTML = '';
-
-            if(myChoice === q.a) {
-                details.innerHTML = `<div class="bg-brand-success/20 p-3 rounded-lg text-brand-success font-bold text-center mb-4">أحسنت! إجابة صحيحة (+1000)</div>`;
-            } else if(myChoice) {
-                details.innerHTML = `<div class="bg-red-500/20 p-3 rounded-lg text-red-400 font-bold text-center mb-4">لقد انخدعت!</div>`;
+            if (details) {
+                details.innerHTML = '';
+                if(myChoice === q.a) {
+                    details.innerHTML = `<div class="bg-brand-success/20 p-4 rounded-lg text-brand-success font-bold text-center border border-brand-success/30">أحسنت! إجابة صحيحة (+1000)</div>`;
+                } else if(myChoice) {
+                    details.innerHTML = `<div class="bg-red-500/20 p-4 rounded-lg text-red-400 font-bold text-center border border-red-500/30">لقد انخدعت! الإجابة التي اخترتها كانت فخاً.</div>`;
+                } else {
+                    details.innerHTML = `<div class="bg-slate-700/50 p-4 rounded-lg text-slate-400 font-bold text-center">انتهى الوقت ولم تختر أي إجابة!</div>`;
+                }
             }
 
-            document.getElementById('host-next-round').classList.toggle('hidden', !isHost);
-            document.getElementById('host-next-round').style.display = isHost ? 'block' : 'none';
+            const hostNext = document.getElementById('host-next-round');
+            if (hostNext) hostNext.classList.toggle('hidden', !isHost);
         }
 
         window.nextRound = async () => {
+            if (!db) return;
             const data = localRoomState;
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             if(data.currentQuestionIndex + 1 >= data.totalRounds) {
@@ -608,20 +697,24 @@
         function renderLeaderboard(data, isHost) {
             showScreen('screen-leaderboard');
             const list = document.getElementById('leaderboard-list');
-            list.innerHTML = '';
-            const sorted = Object.values(data.players).sort((a,b) => b.score - a.score);
-            sorted.forEach((p, i) => {
-                const div = document.createElement('div');
-                div.className = "flex justify-between items-center p-4 rounded-xl bg-slate-800 border border-slate-700";
-                div.innerHTML = `<span class="font-bold text-lg">${i+1}. ${p.name}</span> <span class="text-brand-accent font-mono font-bold">${p.score}</span>`;
-                list.appendChild(div);
-            });
-            document.getElementById('host-play-again').classList.toggle('hidden', !isHost);
+            if (list) {
+                list.innerHTML = '';
+                const sorted = Object.values(data.players || {}).sort((a,b) => b.score - a.score);
+                sorted.forEach((p, i) => {
+                    const div = document.createElement('div');
+                    div.className = "flex justify-between items-center p-4 rounded-xl bg-slate-800 border border-slate-700";
+                    div.innerHTML = `<span class="font-bold text-lg">${i+1}. ${p.name}</span> <span class="text-brand-accent font-mono font-bold text-xl">${p.score}</span>`;
+                    list.appendChild(div);
+                });
+            }
+            const hostAgain = document.getElementById('host-play-again');
+            if (hostAgain) hostAgain.classList.toggle('hidden', !isHost);
         }
 
         window.playAgain = async () => {
+            if (!db) return;
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            const newPlayers = {...localRoomState.players};
+            const newPlayers = {...(localRoomState?.players || {})};
             for(let id in newPlayers) newPlayers[id].score = 0;
             const shuffled = [...questionDatabase].sort(() => 0.5 - Math.random()).slice(0, 5);
             await updateDoc(roomRef, {
@@ -639,41 +732,53 @@
         function startTimer(endTime, id) {
             if(timerInterval) clearInterval(timerInterval);
             const el = document.getElementById(id);
+            if (!el) return;
             timerInterval = setInterval(() => {
                 const rem = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
                 el.textContent = rem;
-                if(rem <= 0) clearInterval(timerInterval);
+                if(rem <= 5) el.classList.add('text-red-500', 'animate-pulse');
+                else el.classList.remove('text-red-500', 'animate-pulse');
+                
+                if(rem <= 0) {
+                    clearInterval(timerInterval);
+                }
             }, 1000);
         }
 
         async function checkHostTransitions(data) {
-            const pCount = Object.keys(data.players).length;
+            if (!db || !currentUser || data.host !== currentUser.uid) return;
+            
+            const pCount = Object.keys(data.players || {}).length;
             const now = Date.now();
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+
             if(data.state === 'writing') {
                 const aCount = Object.keys(data.answers || {}).length;
-                if(aCount === pCount || now >= data.roundEndTime) {
-                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+                if(aCount === pCount || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
                     await updateDoc(roomRef, { state: 'choosing', roundEndTime: Date.now() + 25000 });
                 }
             } else if(data.state === 'choosing') {
                 const cCount = Object.keys(data.choices || {}).length;
-                if(cCount === pCount || now >= data.roundEndTime) {
+                if(cCount === pCount || (data.roundEndTime > 0 && now >= data.roundEndTime)) {
                     calculateScores(data);
                 }
             }
         }
 
         async function calculateScores(data) {
+            if (!db) return;
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            const newPlayers = JSON.parse(JSON.stringify(data.players));
+            const newPlayers = JSON.parse(JSON.stringify(data.players || {}));
             const correct = data.questions[data.currentQuestionIndex].a;
-            for(let uid in data.choices) {
+            
+            for(let uid in (data.choices || {})) {
                 const choice = data.choices[uid];
-                if(choice === correct) newPlayers[uid].score += 1000;
-                else {
-                    for(let fUid in data.answers) {
+                if(choice === correct) {
+                    if (newPlayers[uid]) newPlayers[uid].score += 1000;
+                } else {
+                    for(let fUid in (data.answers || {})) {
                         if(data.answers[fUid] === choice && fUid !== uid) {
-                            newPlayers[fUid].score += 1000;
+                            if (newPlayers[fUid]) newPlayers[fUid].score += 1000;
                         }
                     }
                 }
@@ -682,14 +787,18 @@
         }
 
         window.copyRoomCode = () => {
+            if(!currentRoomId) return;
             const el = document.createElement('textarea');
             el.value = currentRoomId;
             document.body.appendChild(el);
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            showToast("تم النسخ!");
+            showToast("تم النسخ بنجاح!");
         };
+
+        // Initialize Firebase on load
+        initializeFirebase();
 
     </script>
 </body>
